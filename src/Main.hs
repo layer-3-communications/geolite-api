@@ -272,26 +272,21 @@ downloadCsvs = do
 removeCsvs :: IO ()
 removeCsvs = do
   dirs <- listDirectory "./geolite2"
-  removes <- mapM_ removeDirectoryRecursive ( map ((<>) "./geolite2/") dirs)
+  removes <- mapM_ removeDirectoryRecursive ( map ((<>) "./geolite2/") dirs )
   pure ()
 
 renameDirs :: [FilePath] -> IO ()
 renameDirs [a,b,c] = do
-  renameDirectory ( "./geolite2/" <> a ) "./geolite2/country/"
-  renameDirectory ( "./geolite2/" <> b ) "./geolite2/asn/"
-  renameDirectory ( "./geolite2/" <> c ) "./geolite2/city/"
+  renameDirectory ( csvDir <> a ) ( csvDir <> "country/" )
+  renameDirectory ( csvDir <> b ) ( csvDir <> "asn/"     )
+  renameDirectory ( csvDir <> c ) ( csvDir <> "city/"    )
 renameDirs _ = error "possible api change"
 
-organizeCsvs :: IO ()
-organizeCsvs = do
-  dirs <- listDirectory "./geolite2/"
-  renameDirs dirs
+csvDir :: String
+csvDir = "./geolite2/"
 
-{-# NOINLINE csvIORef #-}
-csvIORef :: IO (IORef Maps)
-csvIORef = do 
-  x <- getCsvs
-  newIORef x
+organizeCsvs :: IO ()
+organizeCsvs = listDirectory csvDir >>= renameDirs
 
 getCsvs :: IO Maps
 getCsvs = do
@@ -306,8 +301,8 @@ getCsvs = do
 
 replaceCsvs :: IORef Maps -> IO ()
 replaceCsvs imaps = do
-  getCsvs >>= writeIORef imaps
   T.putStrLn "Reloading geolite2 data..."
+  getCsvs >>= writeIORef imaps
   performMajorGC
 
 -- web server
@@ -316,12 +311,12 @@ main = do
   csvRef :: IORef Maps <- getCsvs >>= newIORef
   performMajorGC
   cron <- execSchedule $ do
-    addJob (replaceCsvs csvRef) "*/2 * * * *"
-  readIORef csvRef >>= server
+    addJob (replaceCsvs csvRef) "30 2 * * *"
+  server csvRef
   pure ()
 
-server:: Maps -> IO ()
-server x = do
+server:: IORef Maps -> IO ()
+server imaps = do
   scotty 3000 $ do
     ----- logger
     middleware logStdoutDev
@@ -332,28 +327,36 @@ server x = do
     ----- IPv4 queries
     get "/ipv4/asn/:ip" $ do
       query <- param "ip"
-      json $ AE.toJSON $ D.lookup query $ asnipv4diet $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ D.lookup query $ asnipv4diet csvMaps
     get "/ipv4/country/:ip" $ do
       query <- param "ip"
-      json $ AE.toJSON $ D.lookup query $ countryipv4diet $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ D.lookup query $ countryipv4diet csvMaps
     get "/ipv4/city/:ip" $ do
       query <- param "ip"
-      json $ AE.toJSON $ D.lookup query $ cityBlockipv4diet $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ D.lookup query $ cityBlockipv4diet csvMaps
     ----- IPv6 queries
     get "/ipv6/asn/:ip" $ do
       query <- param "ip"
-      json $ AE.toJSON $ D.lookup query $ asnipv6diet $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ D.lookup query $ asnipv6diet csvMaps
     get "/ipv6/country/:ip" $ do
       query <- param "ip"
-      json $ AE.toJSON $ D.lookup query $ countryipv6diet $ x
+      csvMaps <- lift $  readIORef imaps 
+      json $ AE.toJSON $ D.lookup query $ countryipv6diet csvMaps
     get "/ipv6/city/:ip" $ do
       query <- param "ip"
-      json $ AE.toJSON $ D.lookup query $ cityBlockipv6diet $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ D.lookup query $ cityBlockipv6diet csvMaps
     ----- gid queries
     get "/gid/city/:gid" $ do
       query <- param "gid"
-      json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap csvMaps
     get "/gid/country/:gid" $ do
       query <- param "gid"
-      json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap $ x
+      csvMaps <- lift $ readIORef imaps 
+      json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap csvMaps
 
