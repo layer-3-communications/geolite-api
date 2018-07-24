@@ -280,7 +280,7 @@ renameDirs [a,b,c] = do
   renameDirectory ( "./geolite2/" <> a ) "./geolite2/country/"
   renameDirectory ( "./geolite2/" <> b ) "./geolite2/asn/"
   renameDirectory ( "./geolite2/" <> c ) "./geolite2/city/"
-renameDirs _ = error "more than 3 folders in geolite2 dir, delete them and restart the webserver"
+renameDirs _ = error "possible api change"
 
 organizeCsvs :: IO ()
 organizeCsvs = do
@@ -357,66 +357,3 @@ server x = do
       query <- param "gid"
       json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap $ x
 
---csvIORef :: IO (IORef Maps)
---csvIORef = do 
---  x <- getCsvs
---  newIORef x
-
- 
-
-{-
-replaceCsvsCron >>= (\maps ->
-  let asnipv4diet        = accessor maps
-      asnipv6diet        = accessor maps
-      cityBlockipv4diet  = accessor maps
-      cityBlockipv6diet  = accessor maps
-      countryipv6diet    = accessor maps
-      countryipv4diet    = accessor maps
-      cityLocationMap    = accessor maps
-      countryLocationMap = accessor maps
-
-  in
-  
-  scotty 3000 $ do
-    cron <- execSchedule $ do
-            addJob replaceCsvs (T.pack "*/2 * * * *")
-    csvRef <- csvIORef
-    let x = readIORef csvRef
-    performMajorGC
-    scotty 3000 $ do
-      ----- logger
-      middleware logStdoutDev
-      ----- help page
-      get (regex "/help|readme") $ do
-        readMe <- liftIO $ T.readFile "./README.md"
-        html $ sakura <> (TL.fromStrict $ commonmarkToHtml [] readMe)
-      ----- IPv4 queries
-      get "/ipv4/asn/:ip" $ do
-        query <- param "ip"
-        json $ AE.toJSON $ D.lookup query $ asnipv4diet $ x
-      get "/ipv4/country/:ip" $ do
-        query <- param "ip"
-        json $ AE.toJSON $ D.lookup query $ countryipv4diet $ x
-      get "/ipv4/city/:ip" $ do
-        query <- param "ip"
-        json $ AE.toJSON $ D.lookup query $ cityBlockipv4diet $ x
-      ----- IPv6 queries
-      get "/ipv6/asn/:ip" $ do
-        query <- param "ip"
-        json $ AE.toJSON $ D.lookup query $ asnipv6diet $ x
-      get "/ipv6/country/:ip" $ do
-        query <- param "ip"
-        json $ AE.toJSON $ D.lookup query $ countryipv6diet $ x
-      get "/ipv6/city/:ip" $ do
-        query <- param "ip"
-        json $ AE.toJSON $ D.lookup query $ cityBlockipv6diet $ x
-      ----- gid queries
-      get "/gid/city/:gid" $ do
-        query <- param "gid"
-        json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap $ x
-      get "/gid/country/:gid" $ do
-        query <- param "gid"
-        json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap $ x
-
-    pure ()
--}
