@@ -3,3 +3,4 @@ meow*
 geolite2/asn/*
 geolite2/city/*
 geolite2/country/*
+.ghc*
