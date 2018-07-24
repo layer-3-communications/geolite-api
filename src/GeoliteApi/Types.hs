@@ -1,73 +1,210 @@
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MagicHash             #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE StrictData            #-}
+{-# LANGUAGE UnboxedTuples         #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
 
 module GeoliteApi.Types where
 
-import Data.Text ( Text )
+import           Control.DeepSeq              ( NFData (rnf) )
+import qualified Country                      as C
+import           Data.Aeson                   ( ToJSON, object, toJSON, (.=) )
+import qualified Data.Aeson                   as AE
+import qualified Data.Diet.Map.Unboxed.Lifted as D
+import qualified Data.Map.Strict              as MS
+import           Data.Text                    ( Text )
+import qualified Data.Text.Lazy               as L
+import           Data.Text.Short              ( ShortText )
+import qualified Data.Text.Short              as TS
+import           GHC.Exts                     ( Int# )
+import           GHC.Generics                 ( Generic )
+import           GHC.Int                      ( Int (I#) )
+import           Net.IPv4                     ( IPv4 )
+import qualified Net.IPv4                     as IPv4
+import           Net.IPv6                     ( IPv6 )
+import qualified Net.IPv6                     as IPv6
+import           Web.Scotty
 
 -- data types representing the decoded information in the CSVs
 data ASN = ASN
-  { autonomous_system_number       :: Int
-  , autonomous_system_organization :: Text
+  { autonomous_system_number       :: Maybe Int
+  , autonomous_system_organization :: ShortText
   }
-  deriving(Show, Eq)
-
-data ASNv6 = ASNv6
-  { autonomous_system_number       :: Int
-  , autonomous_system_organization :: Text
-  }
-  deriving(Show, Eq)
+  deriving(Show, Eq, Generic, NFData)
 
 data Country = Country
-  { geoname_id                     :: Int
-  , registered_country_geoname_id  :: Int
-  , represented_country_geoname_id :: Int
+  { geoname_id                     :: Maybe Int
+  , registered_country_geoname_id  :: Maybe Int
+  , represented_country_geoname_id :: Maybe Int
   , is_anonymous_proxy             :: FatBool
   , is_satellite_provider          :: FatBool
   }
-  deriving(Show, Eq)
+  deriving(Show, Eq, Generic, NFData)
 
-data CountryV6 = CountryV6
-  { geoname_id                     :: Int
-  , registered_country_geoname_id  :: Int
-  , represented_country_geoname_id :: Int
-  , is_anonymous_proxy             :: FatBool
-  , is_satellite_provider          :: FatBool
+data CountryLocation = CountryLocation
+  { locale_code          :: ShortText
+  , continent_code       :: ShortText
+  , continent_name       :: ShortText
+  , country_iso_code     :: C.Country
+  , country_name         :: C.Country
+  , is_in_european_union :: FatBool
   }
-  deriving(Show, Eq)
+  deriving(Show, Eq, Generic, NFData)
 
 data CityBlock = CityBlock
-  { cityBlockGeonameId             :: Int
-  , registered_country_geoname_id  :: Int
-  , represented_country_geoname_id :: Int
+  { cityBlockGeonameId             :: MaybeInt
+  , registered_country_geoname_id  :: MaybeInt
+  , represented_country_geoname_id :: MaybeInt
   , is_anonymous_proxy             :: FatBool
   , is_satellite_provider          :: FatBool
-  , postal_code                    :: Text
-  , latitude                       :: Int
-  , longitude                      :: Int
-  , accuracy_radius                :: Int
+  , postal_code                    :: ShortText
+  , latitude                       :: MaybeInt
+  , longitude                      :: MaybeInt
+  , accuracy_radius                :: MaybeInt
   }
-  deriving(Show, Eq)
+  deriving(Show, Eq, Generic, NFData)
+
+data MaybeInt = MaybeInt (# (# #) | Int# #)
+
+instance Show MaybeInt where
+  showsPrec p m = showsPrec p (boxMaybeInt m)
+
+instance Eq MaybeInt where
+  a == b = boxMaybeInt a == boxMaybeInt b
+
+instance NFData MaybeInt where
+  rnf mi = rnf $ boxMaybeInt mi
+
+boxMaybeInt :: MaybeInt -> Maybe Int
+boxMaybeInt (MaybeInt x) = case x of
+  (# (# #) | #) -> Nothing
+  (# | i #)     -> Just (I# i)
+
+unboxMaybeInt :: Maybe Int -> MaybeInt
+unboxMaybeInt = \case
+  Nothing -> MaybeInt (# (# #) | #)
+  Just (I# i) -> MaybeInt (# | i #)
 
 data CityLocation = CityLocation
-  { locale_code            :: Text
-  , continent_code         :: Text
-  , continent_name         :: Text
-  , country_iso_code       :: Text
-  , country_name           :: Text
-  , subdivision_1_iso_code :: Text
-  , subdivision_1_name     :: Text
-  , subdivision_2_iso_code :: Text
-  , subdivision_2_name     :: Text
-  , city_name              :: Text
-  , metro_code             :: Text
-  , time_zone              :: Text
+  { locale_code            :: ShortText
+  , continent_code         :: ShortText
+  , continent_name         :: ShortText
+  , country_iso_code       :: C.Country
+  , country_name           :: C.Country
+  , subdivision_1_iso_code :: ShortText
+  , subdivision_1_name     :: ShortText
+  , subdivision_2_iso_code :: ShortText
+  , subdivision_2_name     :: ShortText
+  , city_name              :: ShortText
+  , metro_code             :: ShortText
+  , time_zone              :: ShortText
   , is_in_european_union   :: FatBool
   }
-  deriving(Show, Eq)
+  deriving(Show, Eq, Generic, NFData)
+
+data Maps = Maps
+  { asnipv4diet        :: D.Map IPv4 ASN
+  , asnipv6diet        :: D.Map IPv6 ASN
+  , countryipv4diet    :: D.Map IPv4 Country
+  , countryipv6diet    :: D.Map IPv6 Country
+  , cityBlockipv4diet  :: D.Map IPv4 CityBlock
+  , cityBlockipv6diet  :: D.Map IPv6 CityBlock
+  , cityLocationMap    :: MS.Map (Maybe Int) CityLocation
+  , countryLocationMap :: MS.Map (Maybe Int) CountryLocation
+  }
 
 data FatBool = FatTrue | FatFalse | NotTrueOrFalse
-  deriving(Show, Eq)
+  deriving(Show, Eq, Generic, NFData)
+
+instance Parsable IPv4 where
+  parseParam ip = case IPv4.decode $ L.toStrict ip of
+    Nothing -> Left "parseParam IPv4: no parse"
+    Just i  -> Right i
+
+deriving instance NFData  IPv4
+deriving instance NFData  IPv6
+deriving instance Generic IPv6
+
+instance Parsable IPv6 where
+  parseParam ip = case IPv6.decode $ L.toStrict ip of
+    Nothing -> Left "parseParam IPv6: no parse"
+    Just i  -> Right i
+
+instance ToJSON FatBool where
+  toJSON FatTrue        = AE.Bool True
+  toJSON FatFalse       = AE.Bool False
+  toJSON NotTrueOrFalse = AE.Null
+
+instance ToJSON ShortText where
+  toJSON t = AE.String $ TS.toText t
+
+instance ToJSON ASN where
+  toJSON (ASN a b) = object
+    [ "autonomous_system_number"       .= fmap intNull a
+    , "autonomous_system_organization" .= b
+    ]
+
+instance ToJSON Country where
+  toJSON (Country a b c d e) = object
+    [ "geoname_id"                     .= fmap intNull a
+    , "registered_country_geoname_id"  .= fmap intNull b
+    , "represented_country_geoname_id" .= fmap intNull c
+    , "is_anonymous_proxy"             .= d
+    , "is_satellite_provider"          .= e
+    ]
+
+instance ToJSON CountryLocation where
+  toJSON (CountryLocation a b c d e f)  = object
+    [ "locale_code"                    .= textNull a
+    , "lcontinent_code"                .= textNull b
+    , "lcontinent_name"                .= textNull c
+    , "lcountry_iso_code"              .= C.alphaTwoUpper d
+    , "lcountry_name"                  .= e
+    , "lis_in_european_union"          .= f
+    ]
+
+instance ToJSON CityBlock where
+  toJSON (CityBlock a b c d e f g h i) = object
+    [ "cityBlockGeonameId"             .= fmap intNull (boxMaybeInt a)
+    , "registered_country_geoname_id"  .= fmap intNull (boxMaybeInt b)
+    , "represented_country_geoname_id" .= fmap intNull (boxMaybeInt c)
+    , "is_anonymous_proxy"             .= d
+    , "is_satellite_provider"          .= e
+    , "postal_code"                    .= textNull f
+    , "latitude"                       .= fmap intNull (boxMaybeInt g)
+    , "longitude"                      .= fmap intNull (boxMaybeInt h)
+    , "accuracy_radius"                .= fmap intNull (boxMaybeInt i)
+    ]
+
+instance ToJSON CityLocation where
+  toJSON (CityLocation a b c d e f g h i j k l m) = object
+    [ "locale_code"            .= textNull a
+    , "continent_code"         .= textNull b
+    , "continent_name"         .= textNull c
+    , "country_iso_code"       .= C.alphaTwoUpper d
+    , "country_name"           .= e
+    , "subdivision_1_iso_code" .= textNull f
+    , "subdivision_1_name"     .= textNull g
+    , "subdivision_2_iso_code" .= textNull h
+    , "subdivision_2_name"     .= textNull i
+    , "city_name"              .= textNull j
+    , "metro_code"             .= textNull k
+    , "time_zone"              .= textNull l
+    , "is_in_european_union"   .= m
+    ]
+
+textNull :: ShortText -> AE.Value
+textNull "" = AE.Null
+textNull a  = AE.String $ TS.toText a
+
+intNull :: Int -> AE.Value
+intNull 0 = AE.Null
+intNull x = toJSON x
 
