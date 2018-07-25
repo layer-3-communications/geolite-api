@@ -82,10 +82,11 @@ executable geolite-api
                      , text-short
                      , deepseq
                      , unix
-                     , zip-archive
+                     , zip-archive 
                      , req
                      , data-default
                      , directory
+                     , zlib < 0.6
 
   -- Directories containing source files.
   hs-source-dirs:      src
