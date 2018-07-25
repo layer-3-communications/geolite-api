@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
 
 import           CMark                                hiding ( Url )
 import           Codec.Archive.Zip
@@ -180,9 +181,8 @@ ipv6Decode = IPv6.decodeRange <=< either (const Nothing) Just . TE.decodeUtf8'
 --C.decode
 --C.decodeUtf8
 
-mkBlock ::
-     (NFData a, Show a) =>
-     FilePath
+mkBlock :: (NFData a, Show a) 
+  => FilePath 
   -> SI.Siphon Headed B.ByteString a
   -> IO (SR.Of [a] (Maybe SI.SiphonError))
 mkBlock path s = IO.withFile path IO.ReadMode
@@ -190,21 +190,16 @@ mkBlock path s = IO.withFile path IO.ReadMode
       SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle))
 
 -- filepaths of csv
-asnipv4path :: FilePath
-asnipv4path = "./geolite2/asn/GeoLite2-ASN-Blocks-IPv4.csv"
-asnipv6path :: FilePath
-asnipv6path = "./geolite2/asn/GeoLite2-ASN-Blocks-IPv6.csv"
-countryipv4path :: FilePath
-countryipv4path = "./geolite2/country/GeoLite2-Country-Blocks-IPv4.csv"
-countryipv6path :: FilePath
-countryipv6path = "./geolite2/country/GeoLite2-Country-Blocks-IPv6.csv"
-cityBlockipv4path :: FilePath
-cityBlockipv4path = "./geolite2/city/GeoLite2-City-Blocks-IPv4.csv"
-cityBlockipv6path :: FilePath
-cityBlockipv6path = "./geolite2/city/GeoLite2-City-Blocks-IPv6.csv"
-cityLocationpath :: FilePath
-cityLocationpath = "./geolite2/city/GeoLite2-City-Locations-en.csv"
-countryLocationpath :: FilePath
+asnipv4path, asnipv6path, countryipv4path, countryipv6path, 
+  cityBlockipv4path, cityBlockipv6path, cityLocationpath, 
+  countryLocationpath :: FilePath
+asnipv4path         = "./geolite2/asn/GeoLite2-ASN-Blocks-IPv4.csv"
+asnipv6path         = "./geolite2/asn/GeoLite2-ASN-Blocks-IPv6.csv"
+countryipv4path     = "./geolite2/country/GeoLite2-Country-Blocks-IPv4.csv"
+countryipv6path     = "./geolite2/country/GeoLite2-Country-Blocks-IPv6.csv"
+cityBlockipv4path   = "./geolite2/city/GeoLite2-City-Blocks-IPv4.csv"
+cityBlockipv6path   = "./geolite2/city/GeoLite2-City-Blocks-IPv6.csv"
+cityLocationpath    = "./geolite2/city/GeoLite2-City-Locations-en.csv"
 countryLocationpath = "./geolite2/country/GeoLite2-Country-Locations-en.csv"
 csvPath :: B.ByteString
 csvPath = "./geolite2/"
@@ -251,8 +246,9 @@ unzipCsvs asnZip cityZip countryZip = do
   extractFilesFromArchive [ OptRecursive, OptDestination $ zipPath ] cityZip
   extractFilesFromArchive [ OptRecursive, OptDestination $ zipPath ] countryZip
 
--- fromJustUrl :: _
--- (the actual type signature here doesn't compiler for whatever reason)
+fromJustUrl :: Maybe (Url 'Https, Option scheme)
+                      -> (Url 'Https, Option scheme)
+-- the actual type signature here doesn't compiler for whatever reason
 fromJustUrl (Just a) = a
 fromJustUrl Nothing  = fromJust $ parseUrlHttps $ B.pack "fail.org"
 
@@ -280,7 +276,7 @@ renameDirs [a,b,c] = do
   renameDirectory ( csvDir <> a ) ( csvDir <> "country/" )
   renameDirectory ( csvDir <> b ) ( csvDir <> "asn/"     )
   renameDirectory ( csvDir <> c ) ( csvDir <> "city/"    )
-renameDirs _ = error "possible api change"
+renameDirs _ = error "Superfluous files in ./geolite2/, or ther was possible an api change"
 
 csvDir :: String
 csvDir = "./geolite2/"
@@ -315,7 +311,7 @@ main = do
   server csvRef
   pure ()
 
-server:: IORef Maps -> IO ()
+server :: IORef Maps -> IO ()
 server imaps = do
   scotty 3000 $ do
     ----- logger
