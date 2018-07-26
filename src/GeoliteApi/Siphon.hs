@@ -3,7 +3,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
 
-module GeoliteApi.Siphon where
+module GeoliteApi.Siphon
+  ( getCsvs
+  , replaceCsvs
+  ) where
 
 import           Codec.Archive.Zip
 import           Colonnade                            ( Headed )
@@ -22,7 +25,6 @@ import qualified Data.Map.Strict                      as MS
 import           Data.Maybe                           ( fromJust )
 import qualified Data.Text.Encoding                   as TE
 import qualified Data.Text.IO                         as T
-import qualified Data.Text.Lazy                       as TL
 import           Data.Text.Short                      ( ShortText )
 import qualified Data.Text.Short                      as TS
 import           GeoliteApi.Types
@@ -38,7 +40,10 @@ import           System.Directory
 import qualified System.IO                            as IO
 import           System.Mem                           ( performMajorGC )
 
--- functions used by siphon to decode csvs
+--------------------------------------------------------------------------------
+
+-- Below are functions used to decode CSVs representing
+-- different maps that the API uses to perform lookups.
 siphonAsn :: SI.Siphon Headed B.ByteString (IPv4, IPv4, ASN)
 siphonAsn = (\r asn -> (IPv4.lowerInclusive r,IPv4.upperInclusive r,asn))
   <$> SI.headed "network" ipv4Decode
@@ -138,7 +143,10 @@ siphonCityLocations = (\g cl -> (g,cl))
         <*> SI.headed "is_in_european_union" boolDecode
       )
 
--- functions used in parsing the data read from the csvs
+--------------------------------------------------------------------------------
+
+-- Some helper functions for decoding CSVs
+
 intToBool :: Int -> FatBool
 intToBool 0 = FatFalse
 intToBool 1 = FatTrue
@@ -167,6 +175,10 @@ ipv4Decode = IPv4.decodeRange <=< either (const Nothing) Just . TE.decodeUtf8'
 ipv6Decode :: B.ByteString -> Maybe IPv6.IPv6Range
 ipv6Decode = IPv6.decodeRange <=< either (const Nothing) Just . TE.decodeUtf8'
 
+-- | Given a filepath pointing to a CSV,
+--   and a 'Siphon' outlining how to consume it,
+--   Construct a Stream Of [a].
+--   All 'a' values are forced to WHNF.
 mkBlock :: (NFData a, Show a) 
   => FilePath 
   -> SI.Siphon Headed B.ByteString a
@@ -174,7 +186,9 @@ mkBlock :: (NFData a, Show a)
 mkBlock path s = IO.withFile path IO.ReadMode
   (\handle -> SR.toList $ SR.mapM (\ a -> evaluate (rnf a) >> pure a) $ SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle))
 
--- filepaths of csv
+--------------------------------------------------------------------------------
+
+-- | CSV Filepaths.
 asnipv4path, asnipv6path, countryipv4path, countryipv6path, 
   cityBlockipv4path, cityBlockipv6path, cityLocationpath, 
   countryLocationpath :: FilePath
@@ -187,11 +201,14 @@ cityBlockipv6path   = "./geolite2/city/GeoLite2-City-Blocks-IPv6.csv"
 cityLocationpath    = "./geolite2/city/GeoLite2-City-Locations-en.csv"
 countryLocationpath = "./geolite2/country/GeoLite2-Country-Locations-en.csv"
 
-sakura :: TL.Text
-sakura = "<link rel=\"stylesheet\" href=\"https://unpkg.com/sakura.css/css/sakura.css\" type=\"text/css\">"
+--------------------------------------------------------------------------------
 
-dataf :: IO Maps
-dataf = do
+-- | Calls 'mkBlock' on each CSV path, with the 'Siphon'
+--   needed to decode it, then returns a value of type
+--   'Maps' that it stores inside of a compact region.
+mkMaps :: IO Maps
+mkMaps = do
+  -- Perform CSV decoding 
   ( asnls SR.:> _ )
     <- mkBlock asnipv4path siphonAsn
   ( asnv6ls SR.:> _ )
@@ -209,7 +226,7 @@ dataf = do
   ( countryLocations SR.:> _ )
     <- mkBlock countryLocationpath siphonCountryLocations
 
-  -- converts the csv to a diet map
+  -- | Create our various maps.
   let asnipv4diet        :: D.Map IPv4 ASN                     = D.fromList  asnls
       asnipv6diet        :: D.Map IPv6 ASN                     = D.fromList  asnv6ls
       countryipv4diet    :: D.Map IPv4 Country                 = D.fromList  countryls
@@ -219,11 +236,19 @@ dataf = do
       cityLocationMap    :: MS.Map (Maybe Int) CityLocation    = MS.fromList cityLocations
       countryLocationMap :: MS.Map (Maybe Int) CountryLocation = MS.fromList countryLocations
 
+  -- | Construct a 'Maps' and store it inside of a compact
+  --   region. This is advantageous because our data does
+  --   not (and does not need to) take advantage of sharing.
   x <- compact (Maps asnipv4diet asnipv6diet countryipv4diet
         countryipv6diet cityBlockipv4diet cityBlockipv6diet
         cityLocationMap countryLocationMap)
   pure (getCompact x)
 
+--------------------------------------------------------------------------------
+
+-- | Unzip the three CSVs. This should probably
+--   be implemented in a way that is more amenable
+--   to API change.
 unzipCsvs :: Archive -> Archive -> Archive -> IO ()
 unzipCsvs asnZip cityZip countryZip = do
   let zipPath :: FilePath
@@ -232,12 +257,16 @@ unzipCsvs asnZip cityZip countryZip = do
   extractFilesFromArchive [ OptRecursive, OptDestination $ zipPath ] cityZip
   extractFilesFromArchive [ OptRecursive, OptDestination $ zipPath ] countryZip
 
-download :: FilePath -> IO (B.ByteString)
+-- | Download a single CSV
+download :: FilePath -> IO B.ByteString
 download dlurl = runReq def $ do
   let (url, _) = fromJust (parseUrlHttps $ B.pack dlurl)
   response <- req GET url NoReqBody bsResponse mempty
   pure (responseBody response)
 
+-- | Download all three CSVs. This should probably be
+--   implemented in a way that is more amenable to API
+--   change.
 downloadCsvs :: IO (B.ByteString, B.ByteString, B.ByteString)
 downloadCsvs = do
   cityZip    <- download "https://geolite.maxmind.com/download/geoip/database/GeoLite2-City-CSV.zip"
@@ -245,24 +274,39 @@ downloadCsvs = do
   asnZip     <- download "https://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN-CSV.zip"
   pure (cityZip, countryZip, asnZip)
 
+-- | Deletes everything in the CSVs folder.
 removeCsvs :: IO ()
 removeCsvs = do
   dirs <- listDirectory "./geolite2"
   mapM_ removeDirectoryRecursive ( map ((<>) "./geolite2/") dirs )
 
+-- | Rename everything in
 renameDirs :: [FilePath] -> IO ()
-renameDirs [a,b,c] = do
-  renameDirectory ( csvDir <> a ) ( csvDir <> "country/" )
-  renameDirectory ( csvDir <> b ) ( csvDir <> "asn/"     )
-  renameDirectory ( csvDir <> c ) ( csvDir <> "city/"    )
-renameDirs _ = error "Superfluous files in ./geolite2/, or ther was possible an api change"
+renameDirs xs
+  | length xs == 3 = do
+      renameDirectory ( csvDir <> (xs !! 0) ) ( csvDir <> "country/" )
+      renameDirectory ( csvDir <> (xs !! 1) ) ( csvDir <> "asn/"     )
+      renameDirectory ( csvDir <> (xs !! 2) ) ( csvDir <> "city/" )
+  | otherwise = error "Superfluous files in ./geolite2/, or there was possibly an api change"
 
+-- | The directory in which the CSVs should live.
 csvDir :: String
 csvDir = "./geolite2/"
 
+-- | Re-organize the CSVs in 'csvDir'.
 organizeCsvs :: IO ()
 organizeCsvs = listDirectory csvDir >>= renameDirs
 
+--------------------------------------------------------------------------------
+
+-- | 'getCsvs' does the following:
+--
+--   1. removes all CSVs in 'csvDir';
+--   2. Downloads all the new, zipped CSVs;
+--   3. Unzips the CSVs;
+--   4. Makes sure they are well-formatted, and;
+--   5. Constructs the 'Maps' we need for the
+--      API to run.
 getCsvs :: IO Maps
 getCsvs = do
   removeCsvs
@@ -271,13 +315,15 @@ getCsvs = do
              ( toArchive $ fromStrict cityZip    )
              ( toArchive $ fromStrict countryZip )
   organizeCsvs
-  x <- dataf
-  pure (x)
+  mkMaps
 
+-- | 'replaceCsvs' reloads the CSVs into
+--   an 'IORef' used by the server to make
+--   sure we are referencing the newest data.
+--   It then forces a major GC to make sure
+--   there is no unnecessary space utilisation.
 replaceCsvs :: IORef Maps -> IO ()
 replaceCsvs imaps = do
   T.putStrLn "Reloading geolite2 data..."
   getCsvs >>= writeIORef imaps
   performMajorGC
-
-
