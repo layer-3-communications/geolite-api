@@ -53,6 +53,7 @@ executable geolite-api
 
   -- Modules included in this executable, other than Main.
   other-modules:       GeoliteApi.Types
+                       GeoliteApi.Siphon
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
@@ -67,11 +68,11 @@ executable geolite-api
                      , country
                      , cron
                      , ip >= 1.4.0
-                     , primitive
+                     , primitive >= 0.6.4.0
                      , primitive-containers
                      , scientific
                      , scotty
-                     , siphon
+                     , siphon >= 0.8.1
                      , streaming
                      , streaming-bytestring
                      , text
