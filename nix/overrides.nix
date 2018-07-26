@@ -7,7 +7,8 @@ with { inherit (pkgs.stdenv) lib; };
 with pkgs.haskell.lib;
 
 {
-  
+  ip = dontCheck (self.callPackage ./deps/ip.nix {}); 
+   
   siphon = dontCheck super.siphon;
 
   contiguous = ( self.callPackage ./deps/contiguous.nix {} );
