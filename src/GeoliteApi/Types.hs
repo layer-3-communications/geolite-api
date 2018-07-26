@@ -13,23 +13,23 @@
 
 module GeoliteApi.Types where
 
-import           Control.DeepSeq              ( NFData (rnf) )
-import qualified Country                      as C
-import           Data.Aeson                   ( ToJSON, object, toJSON, (.=) )
-import qualified Data.Aeson                   as AE
-import qualified Data.Diet.Map.Unboxed.Lifted as D
-import qualified Data.Map.Strict              as MS
-import           Data.Text                    ( Text )
-import qualified Data.Text.Lazy               as L
-import           Data.Text.Short              ( ShortText )
-import qualified Data.Text.Short              as TS
-import           GHC.Exts                     ( Int# )
-import           GHC.Generics                 ( Generic )
-import           GHC.Int                      ( Int (I#) )
-import           Net.IPv4                     ( IPv4 )
-import qualified Net.IPv4                     as IPv4
-import           Net.IPv6                     ( IPv6 )
-import qualified Net.IPv6                     as IPv6
+import           Control.DeepSeq                     ( NFData (rnf) )
+import qualified Country                             as Country
+import           Data.Aeson                          ( ToJSON, object, toJSON, (.=) )
+import qualified Data.Aeson                          as AE
+import qualified Data.Diet.Map.Strict.Unboxed.Lifted as D
+import qualified Data.Map.Strict                     as MS
+import           Data.Text                           ( Text )
+import qualified Data.Text.Lazy                      as L
+import           Data.Text.Short                     ( ShortText )
+import qualified Data.Text.Short                     as TS
+import           GHC.Exts                            ( Int# )
+import           GHC.Generics                        ( Generic )
+import           GHC.Int                             ( Int (I#) )
+import           Net.IPv4                            ( IPv4 )
+import qualified Net.IPv4                            as IPv4
+import           Net.IPv6                            ( IPv6 )
+import qualified Net.IPv6                            as IPv6
 import           Web.Scotty
 
 -- data types representing the decoded information in the CSVs
@@ -52,8 +52,8 @@ data CountryLocation = CountryLocation
   { locale_code          :: ShortText
   , continent_code       :: ShortText
   , continent_name       :: ShortText
-  , country_iso_code     :: C.Country
-  , country_name         :: C.Country
+  , country_iso_code     :: Country.Country
+  , country_name         :: Country.Country
   , is_in_european_union :: FatBool
   }
   deriving(Show, Eq, Generic, NFData)
@@ -96,8 +96,8 @@ data CityLocation = CityLocation
   { locale_code            :: ShortText
   , continent_code         :: ShortText
   , continent_name         :: ShortText
-  , country_iso_code       :: C.Country
-  , country_name           :: C.Country
+  , country_iso_code       :: Country.Country
+  , country_name           :: Country.Country
   , subdivision_1_iso_code :: ShortText
   , subdivision_1_name     :: ShortText
   , subdivision_2_iso_code :: ShortText
@@ -165,7 +165,7 @@ instance ToJSON CountryLocation where
     [ "locale_code"                    .= textNull a
     , "lcontinent_code"                .= textNull b
     , "lcontinent_name"                .= textNull c
-    , "lcountry_iso_code"              .= C.alphaTwoUpper d
+    , "lcountry_iso_code"              .= Country.alphaTwoUpper d
     , "lcountry_name"                  .= e
     , "lis_in_european_union"          .= f
     ]
@@ -188,7 +188,7 @@ instance ToJSON CityLocation where
     [ "locale_code"            .= textNull a
     , "continent_code"         .= textNull b
     , "continent_name"         .= textNull c
-    , "country_iso_code"       .= C.alphaTwoUpper d
+    , "country_iso_code"       .= Country.alphaTwoUpper d
     , "country_name"           .= e
     , "subdivision_1_iso_code" .= textNull f
     , "subdivision_1_name"     .= textNull g
