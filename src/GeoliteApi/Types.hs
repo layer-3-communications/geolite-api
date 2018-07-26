@@ -11,7 +11,16 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 
-module GeoliteApi.Types where
+module GeoliteApi.Types
+  ( ASN(..)
+  , Country(..)
+  , CountryLocation(..)
+  , CityBlock(..)
+  , CityLocation(..)
+  , FatBool(..)
+  , MaybeInt(..), boxMaybeInt, unboxMaybeInt
+  , Maps(..)
+  ) where
 
 import           Control.DeepSeq                     ( NFData (rnf) )
 import qualified Country                             as Country
@@ -19,11 +28,10 @@ import           Data.Aeson                          ( ToJSON, object, toJSON, (
 import qualified Data.Aeson                          as AE
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted as D
 import qualified Data.Map.Strict                     as MS
-import           Data.Text                           ( Text )
 import qualified Data.Text.Lazy                      as L
 import           Data.Text.Short                     ( ShortText )
 import qualified Data.Text.Short                     as TS
-import           GHC.Exts                            ( Int# )
+import           GHC.Exts                            ( Int# , (==#) )
 import           GHC.Generics                        ( Generic )
 import           GHC.Int                             ( Int (I#) )
 import           Net.IPv4                            ( IPv4 )
@@ -32,13 +40,14 @@ import           Net.IPv6                            ( IPv6 )
 import qualified Net.IPv6                            as IPv6
 import           Web.Scotty
 
--- data types representing the decoded information in the CSVs
+-- | Fixme: doc
 data ASN = ASN
   { autonomous_system_number       :: Maybe Int
   , autonomous_system_organization :: ShortText
   }
   deriving(Show, Eq, Generic, NFData)
 
+-- | Fixme: doc
 data Country = Country
   { geoname_id                     :: Maybe Int
   , registered_country_geoname_id  :: Maybe Int
@@ -48,6 +57,7 @@ data Country = Country
   }
   deriving(Show, Eq, Generic, NFData)
 
+-- | Fixme: doc
 data CountryLocation = CountryLocation
   { locale_code          :: ShortText
   , continent_code       :: ShortText
@@ -58,6 +68,7 @@ data CountryLocation = CountryLocation
   }
   deriving(Show, Eq, Generic, NFData)
 
+-- | Fixme: doc
 data CityBlock = CityBlock
   { cityBlockGeonameId             :: MaybeInt
   , registered_country_geoname_id  :: MaybeInt
@@ -71,27 +82,44 @@ data CityBlock = CityBlock
   }
   deriving(Show, Eq, Generic, NFData)
 
+-- | A 'MaybeInt' is isomorphic to 'Maybe' 'Int',
+--   but allows the 'Int' inside to unbox.
 data MaybeInt = MaybeInt (# (# #) | Int# #)
 
 instance Show MaybeInt where
   showsPrec p m = showsPrec p (boxMaybeInt m)
 
 instance Eq MaybeInt where
-  a == b = boxMaybeInt a == boxMaybeInt b
+  MaybeInt a == MaybeInt b = case a of
+    (# (# #) | #) -> case b of
+      (# (# #) | #) -> True
+      _             -> False
+    (# | a_i# #) -> case b of
+      (# (# #) | #) -> False 
+      (# | b_i# #)  -> case a_i# ==# b_i# of
+        1# -> True
+        _  -> False
+  {-# INLINE (==) #-}
 
+-- why does the box the 'MaybeInt' instead of
+-- just returning '()'?
 instance NFData MaybeInt where
   rnf mi = rnf $ boxMaybeInt mi
+  {-# INLINE rnf #-}
 
+-- | Convert a 'MaybeInt' to a 'Maybe' 'Int'.
 boxMaybeInt :: MaybeInt -> Maybe Int
 boxMaybeInt (MaybeInt x) = case x of
   (# (# #) | #) -> Nothing
   (# | i #)     -> Just (I# i)
 
+-- | Convert a 'Maybe' 'Int' to a 'MaybeInt'.
 unboxMaybeInt :: Maybe Int -> MaybeInt
 unboxMaybeInt = \case
   Nothing -> MaybeInt (# (# #) | #)
   Just (I# i) -> MaybeInt (# | i #)
 
+-- | Fixme: doc
 data CityLocation = CityLocation
   { locale_code            :: ShortText
   , continent_code         :: ShortText
@@ -109,6 +137,7 @@ data CityLocation = CityLocation
   }
   deriving(Show, Eq, Generic, NFData)
 
+-- | Fixme: doc
 data Maps = Maps
   { asnipv4diet        :: D.Map IPv4 ASN
   , asnipv6diet        :: D.Map IPv6 ASN
@@ -120,6 +149,8 @@ data Maps = Maps
   , countryLocationMap :: MS.Map (Maybe Int) CountryLocation
   }
 
+-- | Similar to 'Bool', but fuzzy - things can be
+--   True, False, or neither True nor False.
 data FatBool = FatTrue | FatFalse | NotTrueOrFalse
   deriving(Show, Eq, Generic, NFData)
 
@@ -200,10 +231,12 @@ instance ToJSON CityLocation where
     , "is_in_european_union"   .= m
     ]
 
+-- | Fixme: doc
 textNull :: ShortText -> AE.Value
 textNull "" = AE.Null
 textNull a  = AE.String $ TS.toText a
 
+-- | Fixme: doc
 intNull :: Int -> AE.Value
 intNull 0 = AE.Null
 intNull x = toJSON x
