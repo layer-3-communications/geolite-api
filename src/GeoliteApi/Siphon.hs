@@ -20,7 +20,9 @@ import qualified Data.ByteString.Streaming            as BS
 import           Data.Compact                         ( compact, getCompact )
 import           Data.Default
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted  as D
+import           Data.Foldable                        as F
 import           Data.IORef
+import qualified Data.List                            as L
 import qualified Data.Map.Strict                      as MS
 import           Data.Maybe                           ( fromJust )
 import qualified Data.Text.Encoding                   as TE
@@ -284,9 +286,12 @@ removeCsvs = do
 renameDirs :: [FilePath] -> IO ()
 renameDirs xs
   | length xs == 3 = do
-      renameDirectory ( csvDir <> (xs !! 0) ) ( csvDir <> "country/" )
-      renameDirectory ( csvDir <> (xs !! 1) ) ( csvDir <> "asn/"     )
-      renameDirectory ( csvDir <> (xs !! 2) ) ( csvDir <> "city/" )
+      for_ (L.find (L.isPrefixOf "GeoLite2-City") xs) $ \subdir ->
+        renameDirectory ( csvDir <> subdir ) ( csvDir <> "city/" )
+      for_ (L.find (L.isPrefixOf "GeoLite2-ASN") xs) $ \subdir ->
+        renameDirectory ( csvDir <> subdir ) ( csvDir <> "asn/" )
+      for_ (L.find (L.isPrefixOf "GeoLite2-Country") xs) $ \subdir ->
+        renameDirectory ( csvDir <> subdir ) ( csvDir <> "country/" )
   | otherwise = error "Superfluous files in ./geolite2/, or there was possibly an api change"
 
 -- | The directory in which the CSVs should live.
