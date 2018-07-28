@@ -13,7 +13,7 @@ with pkgs.haskell.lib;
 
   contiguous = ( self.callPackage ./deps/contiguous.nix {} );
 
-  primitive = self.callPackage ./deps/primitive.nix {};
+  primitive = super.primitive_0_6_4_0;
   
   quantification = self.callPackage ./deps/quantification.nix {};
 
