@@ -1,7 +1,12 @@
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE MagicHash           #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UnboxedSums         #-}
+{-# LANGUAGE UnboxedTuples       #-}
 
 module GeoliteApi.Siphon
   ( getCsvs
@@ -14,20 +19,27 @@ import           Control.DeepSeq                      ( NFData (rnf) )
 import           Control.Exception                    ( evaluate )
 import           Control.Monad                        ( guard, (<=<) )
 import qualified Country                              as C
-import qualified Data.ByteString.Char8                as B
+import qualified Data.Attoparsec.ByteString.Char8     as Atto
+import qualified Data.ByteString.Char8                as BC8
+import qualified Data.ByteString.Lazy.Char8           as BC8L
 import           Data.ByteString.Lazy                 ( fromStrict )
 import qualified Data.ByteString.Streaming            as BS
 import           Data.Compact                         ( compact, getCompact )
 import           Data.Default
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted  as D
+import           Data.Foldable                        as F
 import           Data.IORef
+import qualified Data.List                            as L
 import qualified Data.Map.Strict                      as MS
 import           Data.Maybe                           ( fromJust )
 import qualified Data.Text.Encoding                   as TE
 import qualified Data.Text.IO                         as T
 import           Data.Text.Short                      ( ShortText )
 import qualified Data.Text.Short                      as TS
+import           Data.Word                            ( Word8 )
 import           GeoliteApi.Types
+import           GHC.Base                             ( unsafeChr )
+import           GHC.Exts                             ( Double (D#) )
 import           Net.IPv4                             ( IPv4 )
 import qualified Net.IPv4                             as IPv4
 import           Net.IPv6                             ( IPv6 )
@@ -39,6 +51,12 @@ import qualified Streaming.Prelude                    as SR
 import           System.Directory
 import qualified System.IO                            as IO
 import           System.Mem                           ( performMajorGC )
+import qualified Data.ByteString.Unsafe               as B
+import qualified Data.ByteString                      as B
+import           Text.Read                            ( readMaybe )
+import           Foreign.C.Types
+import           System.IO.Unsafe
+import           Foreign.Ptr
 
 --------------------------------------------------------------------------------
 
@@ -104,8 +122,8 @@ siphonCityBlock = (\r cb -> (IPv4.lowerInclusive r,IPv4.upperInclusive r,cb))
         <*> SI.headed "is_anonymous_proxy" boolDecode
         <*> SI.headed "is_satellite_provider" boolDecode
         <*> SI.headed "postal_code" shortTextDecode
-        <*> SI.headed "latitude" maybeNumDecode
-        <*> SI.headed "longitude" maybeNumDecode
+        <*> SI.headed "latitude" doubleDecode
+        <*> SI.headed "longitude" doubleDecode --shortTextDecode --maybeNumDecode
         <*> SI.headed "accuracy_radius" maybeNumDecode
       )
 
@@ -119,8 +137,8 @@ siphonCityBlockV6 = (\r cb -> (IPv6.lowerInclusive r,IPv6.upperInclusive r,cb))
         <*> SI.headed "is_anonymous_proxy" boolDecode
         <*> SI.headed "is_satellite_provider" boolDecode
         <*> SI.headed "postal_code" shortTextDecode
-        <*> SI.headed "latitude" maybeNumDecode
-        <*> SI.headed "longitude" maybeNumDecode
+        <*> SI.headed "latitude" doubleDecode
+        <*> SI.headed "longitude" doubleDecode
         <*> SI.headed "accuracy_radius" maybeNumDecode
       )
 
@@ -154,9 +172,27 @@ intToBool _ = NotTrueOrFalse
 
 readIntExactly :: B.ByteString -> Maybe Int
 readIntExactly bs = do
-  (ident,remaining) <- B.readInt bs
+  (ident,remaining) <- BC8.readInt bs
   guard (B.null remaining)
   return ident
+
+helpMe :: String -> String
+helpMe [] = []
+helpMe (x:xs) = case x of
+  '-' -> ( x  : '0' : xs)
+  '+' -> ( x  : '0' : xs)
+  '.' -> ('0' :  x  : xs)
+  _   -> (x : xs)
+
+readDouble :: B.ByteString -> Maybe Double
+readDouble b =
+  let helped = readMaybe $ helpMe $ BC8.unpack b :: Maybe Double
+  in case helped of
+    Nothing -> Nothing
+    Just d  -> Just d
+
+doubleDecode :: B.ByteString -> Maybe MaybeDouble
+doubleDecode = Just . unboxMaybeDouble . readDouble
 
 shortTextDecode :: B.ByteString -> Maybe ShortText
 shortTextDecode = TS.fromByteString
@@ -260,7 +296,7 @@ unzipCsvs asnZip cityZip countryZip = do
 -- | Download a single CSV
 download :: FilePath -> IO B.ByteString
 download dlurl = runReq def $ do
-  let (url, _) = fromJust (parseUrlHttps $ B.pack dlurl)
+  let (url, _) = fromJust (parseUrlHttps $ BC8.pack dlurl)
   response <- req GET url NoReqBody bsResponse mempty
   pure (responseBody response)
 
@@ -284,9 +320,12 @@ removeCsvs = do
 renameDirs :: [FilePath] -> IO ()
 renameDirs xs
   | length xs == 3 = do
-      renameDirectory ( csvDir <> (xs !! 0) ) ( csvDir <> "country/" )
-      renameDirectory ( csvDir <> (xs !! 1) ) ( csvDir <> "asn/"     )
-      renameDirectory ( csvDir <> (xs !! 2) ) ( csvDir <> "city/" )
+      for_ (L.find (L.isPrefixOf "GeoLite2-City") xs) $ \subdir ->
+        renameDirectory ( csvDir <> subdir ) ( csvDir <> "city/" )
+      for_ (L.find (L.isPrefixOf "GeoLite2-ASN") xs) $ \subdir ->
+        renameDirectory ( csvDir <> subdir ) ( csvDir <> "asn/" )
+      for_ (L.find (L.isPrefixOf "GeoLite2-Country") xs) $ \subdir ->
+        renameDirectory ( csvDir <> subdir ) ( csvDir <> "country/" )
   | otherwise = error "Superfluous files in ./geolite2/, or there was possibly an api change"
 
 -- | The directory in which the CSVs should live.

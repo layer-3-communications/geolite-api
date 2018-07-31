@@ -4,15 +4,17 @@
 {-# LANGUAGE DataKinds #-}
 
 import           CMark                                hiding ( Url )
+import           Control.Monad                        ( mapM_ )
 import           Control.Monad.IO.Class               ( liftIO )
 import           Control.Monad.Trans.Class            ( MonadTrans(..) )
 import qualified Data.Aeson                           as AE
+import qualified Data.ByteString                      as BS
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted  as D
 import           Data.IORef
 import qualified Data.Map.Strict                      as MS
 import qualified Data.Text.IO                         as T
 import qualified Data.Text.Lazy                       as TL
-import           GeoliteApi.Siphon                    (getCsvs, replaceCsvs)
+import           GeoliteApi.Siphon                    ( getCsvs, replaceCsvs )
 import           GeoliteApi.Types                     ( Maps(..) )
 import           Network.Wai.Middleware.RequestLogger
 import           System.Cron
@@ -80,4 +82,4 @@ server imaps = do
       json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap csvMaps
 
 sakura :: TL.Text
-sakura = "<link rel=\"stylesheet\" href=\"https://unpkg.com/sakura.    css/css/sakura.css\" type=\"text/css\">"
+sakura = "<link rel=\"stylesheet\" href=\"https://unpkg.com/sakura.css/css/sakura.css\" type=\"text/css\">"
