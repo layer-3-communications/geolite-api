@@ -4,11 +4,9 @@
 {-# LANGUAGE DataKinds #-}
 
 import           CMark                                hiding ( Url )
-import           Control.Monad                        ( mapM_ )
 import           Control.Monad.IO.Class               ( liftIO )
 import           Control.Monad.Trans.Class            ( MonadTrans(..) )
 import qualified Data.Aeson                           as AE
-import qualified Data.ByteString                      as BS
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted  as D
 import           Data.IORef
 import qualified Data.Map.Strict                      as MS

@@ -32,7 +32,7 @@ import qualified Data.Map.Strict                     as MS
 import qualified Data.Text.Lazy                      as L
 import           Data.Text.Short                     ( ShortText )
 import qualified Data.Text.Short                     as TS
-import           GHC.Exts                            ( Int#, Double#, (==#), (==##), Double (D#), Int (I#) )
+import           GHC.Exts                            ( Int#, Double#, Double (D#), Int (I#) )
 import           GHC.Generics                        ( Generic )
 import           Net.IPv4                            ( IPv4 )
 import qualified Net.IPv4                            as IPv4
@@ -120,7 +120,6 @@ unboxMaybeInt = \case
   Nothing -> MaybeInt (# (# #) | #)
   Just (I# i) -> MaybeInt (# | i #)
 
-<<<<<<< HEAD
 data MaybeDouble = MaybeDouble (# (# #) | Double# #)
 
 instance Eq MaybeDouble where

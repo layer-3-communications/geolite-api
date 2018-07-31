@@ -19,9 +19,7 @@ import           Control.DeepSeq                      ( NFData (rnf) )
 import           Control.Exception                    ( evaluate )
 import           Control.Monad                        ( guard, (<=<) )
 import qualified Country                              as C
-import qualified Data.Attoparsec.ByteString.Char8     as Atto
 import qualified Data.ByteString.Char8                as BC8
-import qualified Data.ByteString.Lazy.Char8           as BC8L
 import           Data.ByteString.Lazy                 ( fromStrict )
 import qualified Data.ByteString.Streaming            as BS
 import           Data.Compact                         ( compact, getCompact )
@@ -36,10 +34,7 @@ import qualified Data.Text.Encoding                   as TE
 import qualified Data.Text.IO                         as T
 import           Data.Text.Short                      ( ShortText )
 import qualified Data.Text.Short                      as TS
-import           Data.Word                            ( Word8 )
 import           GeoliteApi.Types
-import           GHC.Base                             ( unsafeChr )
-import           GHC.Exts                             ( Double (D#) )
 import           Net.IPv4                             ( IPv4 )
 import qualified Net.IPv4                             as IPv4
 import           Net.IPv6                             ( IPv6 )
@@ -51,12 +46,8 @@ import qualified Streaming.Prelude                    as SR
 import           System.Directory
 import qualified System.IO                            as IO
 import           System.Mem                           ( performMajorGC )
-import qualified Data.ByteString.Unsafe               as B
 import qualified Data.ByteString                      as B
 import           Text.Read                            ( readMaybe )
-import           Foreign.C.Types
-import           System.IO.Unsafe
-import           Foreign.Ptr
 
 --------------------------------------------------------------------------------
 
