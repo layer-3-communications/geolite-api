@@ -82,4 +82,6 @@ server imaps = do
       json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap csvMaps
 
 sakura :: TL.Text
-sakura = "<link rel=\"stylesheet\" href=\"https://unpkg.com/sakura.css/css/sakura.css\" type=\"text/css\">"
+sakura = "<link rel=\"stylesheet\"\
+        \ href=\"https://unpkg.com/sakura.css/css/sakura.css\"\
+        \ type=\"text/css\">"

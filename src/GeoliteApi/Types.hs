@@ -40,14 +40,14 @@ import           Net.IPv6                            ( IPv6 )
 import qualified Net.IPv6                            as IPv6
 import           Web.Scotty
 
--- | Fixme: doc
+-- | Type of ASN csv
 data ASN = ASN
   { autonomous_system_number       :: Maybe Int
   , autonomous_system_organization :: ShortText
   }
   deriving(Show, Eq, Generic, NFData)
 
--- | Fixme: doc
+-- | Type of Country csvs
 data Country = Country
   { geoname_id                     :: Maybe Int
   , registered_country_geoname_id  :: Maybe Int
@@ -57,7 +57,7 @@ data Country = Country
   }
   deriving(Show, Eq, Generic, NFData)
 
--- | Fixme: doc
+-- | Type of Country Location csv
 data CountryLocation = CountryLocation
   { locale_code          :: ShortText
   , continent_code       :: ShortText
@@ -68,7 +68,7 @@ data CountryLocation = CountryLocation
   }
   deriving(Show, Eq, Generic, NFData)
 
--- | Fixme: doc
+-- | Type of CityBlock csv
 data CityBlock = CityBlock
   { cityBlockGeonameId             :: MaybeInt
   , registered_country_geoname_id  :: MaybeInt
@@ -120,6 +120,7 @@ unboxMaybeInt = \case
   Nothing -> MaybeInt (# (# #) | #)
   Just (I# i) -> MaybeInt (# | i #)
 
+<<<<<<< HEAD
 data MaybeDouble = MaybeDouble (# (# #) | Double# #)
 
 instance Eq MaybeDouble where
@@ -153,7 +154,7 @@ unboxMaybeDouble = \case
   Nothing -> MaybeDouble (# (# #) | #)
   Just (D# d) -> MaybeDouble (# | d #)
 
--- | Fixme: doc
+-- | Type of City Location csv
 data CityLocation = CityLocation
   { locale_code            :: ShortText
   , continent_code         :: ShortText
@@ -171,7 +172,7 @@ data CityLocation = CityLocation
   }
   deriving(Show, Eq, Generic, NFData)
 
--- | Fixme: doc
+-- | Type representing maps of each CSV
 data Maps = Maps
   { asnipv4diet        :: D.Map IPv4 ASN
   , asnipv6diet        :: D.Map IPv6 ASN
