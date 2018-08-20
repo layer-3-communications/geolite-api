@@ -77,7 +77,7 @@ server imaps = do
     get "/gid/country/:gid" $ do
       query <- param "gid"
       csvMaps <- lift $ readIORef imaps 
-      json $ AE.toJSON $ MS.lookup (Just query) $ cityLocationMap csvMaps
+      json $ AE.toJSON $ MS.lookup (Just query) $ countryLocationMap csvMaps
 
 sakura :: TL.Text
 sakura = "<link rel=\"stylesheet\" href=\"https://unpkg.com/sakura.    css/css/sakura.css\" type=\"text/css\">"
