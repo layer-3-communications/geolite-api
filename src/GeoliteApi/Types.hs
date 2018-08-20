@@ -19,6 +19,7 @@ module GeoliteApi.Types
   , CityLocation(..)
   , FatBool(..)
   , MaybeInt(..), boxMaybeInt, unboxMaybeInt
+  , MaybeDouble(..), boxMaybeDouble, unboxMaybeDouble 
   , Maps(..)
   ) where
 
@@ -31,9 +32,8 @@ import qualified Data.Map.Strict                     as MS
 import qualified Data.Text.Lazy                      as L
 import           Data.Text.Short                     ( ShortText )
 import qualified Data.Text.Short                     as TS
-import           GHC.Exts                            ( Int# , (==#) )
+import           GHC.Exts                            ( Int#, Double#, Double (D#), Int (I#) )
 import           GHC.Generics                        ( Generic )
-import           GHC.Int                             ( Int (I#) )
 import           Net.IPv4                            ( IPv4 )
 import qualified Net.IPv4                            as IPv4
 import           Net.IPv6                            ( IPv6 )
@@ -76,8 +76,8 @@ data CityBlock = CityBlock
   , is_anonymous_proxy             :: FatBool
   , is_satellite_provider          :: FatBool
   , postal_code                    :: ShortText
-  , latitude                       :: MaybeInt
-  , longitude                      :: MaybeInt
+  , latitude                       :: MaybeDouble
+  , longitude                      :: MaybeDouble
   , accuracy_radius                :: MaybeInt
   }
   deriving(Show, Eq, Generic, NFData)
@@ -90,16 +90,17 @@ instance Show MaybeInt where
   showsPrec p m = showsPrec p (boxMaybeInt m)
 
 instance Eq MaybeInt where
-  MaybeInt a == MaybeInt b = case a of
-    (# (# #) | #) -> case b of
-      (# (# #) | #) -> True
-      _             -> False
-    (# | a_i# #) -> case b of
-      (# (# #) | #) -> False 
-      (# | b_i# #)  -> case a_i# ==# b_i# of
-        1# -> True
-        _  -> False
-  {-# INLINE (==) #-}
+  a == b = boxMaybeInt a == boxMaybeInt b 
+--  MaybeInt a == MaybeInt b = case a of
+--    (# (# #) | #) -> case b of
+--      (# (# #) | #) -> True
+--      _             -> False
+--    (# | a_i# #) -> case b of
+--      (# (# #) | #) -> False 
+--      (# | b_i# #)  -> case a_i# ==# b_i# of
+--        1# -> True
+--        _  -> False
+--  {-# INLINE (==) #-}
 
 -- why does the box the 'MaybeInt' instead of
 -- just returning '()'?
@@ -118,6 +119,39 @@ unboxMaybeInt :: Maybe Int -> MaybeInt
 unboxMaybeInt = \case
   Nothing -> MaybeInt (# (# #) | #)
   Just (I# i) -> MaybeInt (# | i #)
+
+data MaybeDouble = MaybeDouble (# (# #) | Double# #)
+
+instance Eq MaybeDouble where
+  a == b = boxMaybeDouble a == boxMaybeDouble b
+
+--  MaybeDouble a == MaybeDouble b = case a of
+--    (# (# #) | #) -> case b of
+--      (# (# #) | #) -> True
+--      _             -> False
+--    (# | a_i# #) -> case b of
+--      (# (# #) | #) -> False 
+--      (# | b_i# #)  -> case a_i# ==## b_i# of
+--        1# -> True
+--        _  -> False
+--  {-# INLINE (==) #-}
+
+instance Show MaybeDouble where
+  showsPrec p m = showsPrec p (boxMaybeDouble m)
+
+instance NFData MaybeDouble where
+  rnf md = rnf $ boxMaybeDouble md
+  {-# INLINE rnf #-}
+
+boxMaybeDouble :: MaybeDouble -> Maybe Double
+boxMaybeDouble (MaybeDouble x) = case x of
+  (# (# #) | #) -> Nothing
+  (# | d #)     -> Just (D# d)
+
+unboxMaybeDouble :: Maybe Double -> MaybeDouble
+unboxMaybeDouble = \case
+  Nothing -> MaybeDouble (# (# #) | #)
+  Just (D# d) -> MaybeDouble (# | d #)
 
 -- | Type of City Location csv
 data CityLocation = CityLocation
@@ -209,8 +243,8 @@ instance ToJSON CityBlock where
     , "is_anonymous_proxy"             .= d
     , "is_satellite_provider"          .= e
     , "postal_code"                    .= textNull f
-    , "latitude"                       .= fmap intNull (boxMaybeInt g)
-    , "longitude"                      .= fmap intNull (boxMaybeInt h)
+    , "latitude"                       .= fmap doubleNull (boxMaybeDouble g)
+    , "longitude"                      .= fmap doubleNull (boxMaybeDouble h)
     , "accuracy_radius"                .= fmap intNull (boxMaybeInt i)
     ]
 
@@ -241,3 +275,6 @@ intNull :: Int -> AE.Value
 intNull 0 = AE.Null
 intNull x = toJSON x
 
+doubleNull :: Double -> AE.Value
+doubleNull 0 = AE.Null
+doubleNull x = toJSON x

@@ -1,7 +1,12 @@
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE MagicHash           #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UnboxedSums         #-}
+{-# LANGUAGE UnboxedTuples       #-}
 
 module GeoliteApi.Siphon
   ( getCsvs
@@ -14,7 +19,7 @@ import           Control.DeepSeq                      ( NFData (rnf) )
 import           Control.Exception                    ( evaluate )
 import           Control.Monad                        ( guard, (<=<) )
 import qualified Country                              as C
-import qualified Data.ByteString.Char8                as B
+import qualified Data.ByteString.Char8                as BC8
 import           Data.ByteString.Lazy                 ( fromStrict )
 import qualified Data.ByteString.Streaming            as BS
 import           Data.Compact                         ( compact, getCompact )
@@ -41,6 +46,8 @@ import qualified Streaming.Prelude                    as SR
 import           System.Directory
 import qualified System.IO                            as IO
 import           System.Mem                           ( performMajorGC )
+import qualified Data.ByteString                      as B
+import           Text.Read                            ( readMaybe )
 
 --------------------------------------------------------------------------------
 
@@ -106,8 +113,8 @@ siphonCityBlock = (\r cb -> (IPv4.lowerInclusive r,IPv4.upperInclusive r,cb))
         <*> SI.headed "is_anonymous_proxy" boolDecode
         <*> SI.headed "is_satellite_provider" boolDecode
         <*> SI.headed "postal_code" shortTextDecode
-        <*> SI.headed "latitude" maybeNumDecode
-        <*> SI.headed "longitude" maybeNumDecode
+        <*> SI.headed "latitude" doubleDecode
+        <*> SI.headed "longitude" doubleDecode --shortTextDecode --maybeNumDecode
         <*> SI.headed "accuracy_radius" maybeNumDecode
       )
 
@@ -121,8 +128,8 @@ siphonCityBlockV6 = (\r cb -> (IPv6.lowerInclusive r,IPv6.upperInclusive r,cb))
         <*> SI.headed "is_anonymous_proxy" boolDecode
         <*> SI.headed "is_satellite_provider" boolDecode
         <*> SI.headed "postal_code" shortTextDecode
-        <*> SI.headed "latitude" maybeNumDecode
-        <*> SI.headed "longitude" maybeNumDecode
+        <*> SI.headed "latitude" doubleDecode
+        <*> SI.headed "longitude" doubleDecode
         <*> SI.headed "accuracy_radius" maybeNumDecode
       )
 
@@ -156,9 +163,27 @@ intToBool _ = NotTrueOrFalse
 
 readIntExactly :: B.ByteString -> Maybe Int
 readIntExactly bs = do
-  (ident,remaining) <- B.readInt bs
+  (ident,remaining) <- BC8.readInt bs
   guard (B.null remaining)
   return ident
+
+helpMe :: String -> String
+helpMe [] = []
+helpMe (x:xs) = case x of
+  '-' -> ( x  : '0' : xs)
+  '+' -> ( x  : '0' : xs)
+  '.' -> ('0' :  x  : xs)
+  _   -> (x : xs)
+
+readDouble :: B.ByteString -> Maybe Double
+readDouble b =
+  let helped = readMaybe $ helpMe $ BC8.unpack b :: Maybe Double
+  in case helped of
+    Nothing -> Nothing
+    Just d  -> Just d
+
+doubleDecode :: B.ByteString -> Maybe MaybeDouble
+doubleDecode = Just . unboxMaybeDouble . readDouble
 
 shortTextDecode :: B.ByteString -> Maybe ShortText
 shortTextDecode = TS.fromByteString
@@ -262,7 +287,7 @@ unzipCsvs asnZip cityZip countryZip = do
 -- | Download a single CSV
 download :: FilePath -> IO B.ByteString
 download dlurl = runReq def $ do
-  let (url, _) = fromJust (parseUrlHttps $ B.pack dlurl)
+  let (url, _) = fromJust (parseUrlHttps $ BC8.pack dlurl)
   response <- req GET url NoReqBody bsResponse mempty
   pure (responseBody response)
 
