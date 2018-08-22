@@ -48,6 +48,7 @@ import qualified System.IO                            as IO
 import           System.Mem                           ( performMajorGC )
 import qualified Data.ByteString                      as B
 import           Text.Read                            ( readMaybe )
+import qualified GHC.Exts                             as E
 
 import           Debug.Trace
 import           Control.Concurrent
@@ -254,6 +255,11 @@ countryLocationpath = "./geolite2/country/GeoLite2-Country-Locations-en.csv"
 
 --------------------------------------------------------------------------------
 
+handleError :: SR.Of a (Maybe SI.SiphonError) -> IO a
+handleError (a SR.:> m) = case m of
+  Nothing -> pure a
+  Just e -> fail (SI.humanizeSiphonError e)
+
 -- | Calls 'mkBlock' on each CSV path, with the 'Siphon'
 --   needed to decode it, then returns a value of type
 --   'Maps' that it stores inside of a compact region.
@@ -261,34 +267,26 @@ mkMaps :: IO Maps
 mkMaps = do
   -- Perform CSV decoding 
   traceM "Making ASN Map"
-  ( asnls SR.:> _ )
-    <- mkBlock asnipv4path siphonAsn
+  asnls <- mkBlock asnipv4path siphonAsn >>= handleError
   traceM "Making ASN_V6 Map"
-  ( asnv6ls SR.:> _ )
-    <- mkBlock asnipv6path siphonAsnv6
+  asnv6ls <- mkBlock asnipv6path siphonAsnv6 >>= handleError
   traceM "Making Country Map"
-  ( countryls SR.:> _ )
-    <- mkBlock countryipv4path siphonCountry
+  countryls <- mkBlock countryipv4path siphonCountry >>= handleError
   traceM "Making Country_V6 Map"
-  ( countryv6ls SR.:> _ )
-    <- mkBlock countryipv6path siphonCountryV6
+  countryv6ls <- mkBlock countryipv6path siphonCountryV6 >>= handleError
   traceM "Making City Block Map"
-  ( cityBlockls SR.:> _ )
-    <- mkBlock cityBlockipv4path siphonCityBlock
+  cityBlockls <- mkBlock cityBlockipv4path siphonCityBlock >>= handleError
   traceM "Making City Block_V6 Map"
-  ( cityBlockv6ls SR.:> _ )
-    <- mkBlock cityBlockipv6path siphonCityBlockV6
+  cityBlockv6ls <- mkBlock cityBlockipv6path siphonCityBlockV6 >>= handleError
 
   performMajorGC
 
   threadDelay 30
 
   traceM "Making City Locations Map"
-  ( cityLocations SR.:> _ )
-    <- mkBlockDeleteMe cityLocationpath siphonCityLocations
+  cityLocations <- mkBlockDeleteMe cityLocationpath siphonCityLocations >>= handleError
   traceM "Making Country Locations Map"
-  ( countryLocations SR.:> _ )
-    <- mkBlockDeleteMe countryLocationpath siphonCountryLocations
+  countryLocations <- mkBlockDeleteMe countryLocationpath siphonCountryLocations >>= handleError
 
   -- | Create our various maps.
   let asnipv4diet        :: D.Map IPv4 ASN                     = D.fromList  asnls
@@ -299,6 +297,15 @@ mkMaps = do
       cityBlockipv6diet  :: D.Map IPv6 CityBlock               = D.fromList  cityBlockv6ls
       cityLocationMap    :: MS.Map Int CityLocation            = MS.fromList cityLocations
       countryLocationMap :: MS.Map Int CountryLocation         = MS.fromList countryLocations
+
+  putStrLn ("IPv4 Count: " ++ show (length $ E.toList asnipv4diet))
+  putStrLn ("IPv6 Count: " ++ show (length $ E.toList asnipv6diet))
+  putStrLn ("Country Count IPv4: " ++ show (length $ E.toList countryipv4diet))
+  putStrLn ("Country Count IPv6: " ++ show (length $ E.toList countryipv6diet))
+  putStrLn ("City Block Count IPv4: " ++ show (length $ E.toList cityBlockipv4diet))
+  putStrLn ("City Block Count IPv6: " ++ show (length $ E.toList cityBlockipv6diet))
+  putStrLn ("City Location Count: " ++ show (length $ E.toList cityLocationMap))
+  putStrLn ("Country Location Count: " ++ show (length $ E.toList countryLocationMap))
 
   -- | Construct a 'Maps' and store it inside of a compact
   --   region. This is advantageous because our data does
