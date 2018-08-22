@@ -17,6 +17,8 @@ with pkgs.haskell.lib;
   
   quantification = self.callPackage ./deps/quantification.nix {};
 
+  bytestring-encodings = dontCheck super.bytestring-encodings;
+
   primitive-containers =
     doJailbreak
       ( dontBenchmark

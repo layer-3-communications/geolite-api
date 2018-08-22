@@ -91,9 +91,9 @@ siphonCountryV6 = (\r c -> (IPv6.lowerInclusive r,IPv6.upperInclusive r,c))
         <*> SI.headed "is_satellite_provider" boolDecode
       )
 
-siphonCountryLocations :: SI.Siphon Headed B.ByteString (Maybe Int, CountryLocation)
+siphonCountryLocations :: SI.Siphon Headed B.ByteString (Int, CountryLocation)
 siphonCountryLocations = (\g cl -> (g,cl))
-  <$> SI.headed "geoname_id" numDecode
+  <$> SI.headed "geoname_id" (unwrap . numDecode)
   <*> ( CountryLocation
         <$> SI.headed "locale_code" shortTextDecode
         <*> SI.headed "continent_code" shortTextDecode
@@ -133,9 +133,9 @@ siphonCityBlockV6 = (\r cb -> (IPv6.lowerInclusive r,IPv6.upperInclusive r,cb))
         <*> SI.headed "accuracy_radius" maybeNumDecode
       )
 
-siphonCityLocations :: SI.Siphon Headed B.ByteString (Maybe Int, CityLocation)
+siphonCityLocations :: SI.Siphon Headed B.ByteString (Int, CityLocation)
 siphonCityLocations = (\g cl -> (g,cl))
-  <$> SI.headed "geoname_id" numDecode
+  <$> SI.headed "geoname_id" (unwrap . numDecode)
   <*> ( CityLocation
         <$> SI.headed "locale_code" shortTextDecode
         <*> SI.headed "continent_code" shortTextDecode
@@ -190,6 +190,10 @@ shortTextDecode = TS.fromByteString
 
 numDecode :: B.ByteString -> Maybe (Maybe Int)
 numDecode  = Just . readIntExactly
+
+unwrap :: Maybe (Maybe a) -> Maybe a
+unwrap (Just x) = x
+unwrap Nothing = Nothing
 
 maybeNumDecode :: B.ByteString -> Maybe MaybeInt
 maybeNumDecode  = Just . unboxMaybeInt . readIntExactly
@@ -260,8 +264,8 @@ mkMaps = do
       countryipv6diet    :: D.Map IPv6 Country                 = D.fromList  countryv6ls
       cityBlockipv4diet  :: D.Map IPv4 CityBlock               = D.fromList  cityBlockls
       cityBlockipv6diet  :: D.Map IPv6 CityBlock               = D.fromList  cityBlockv6ls
-      cityLocationMap    :: MS.Map (Maybe Int) CityLocation    = MS.fromList cityLocations
-      countryLocationMap :: MS.Map (Maybe Int) CountryLocation = MS.fromList countryLocations
+      cityLocationMap    :: MS.Map Int CityLocation            = MS.fromList cityLocations
+      countryLocationMap :: MS.Map Int CountryLocation         = MS.fromList countryLocations
 
   -- | Construct a 'Maps' and store it inside of a compact
   --   region. This is advantageous because our data does

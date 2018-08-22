@@ -61,7 +61,9 @@ executable geolite-api
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.11 && <4.12
                      , aeson
+                     , aeson-pretty
                      , bytestring
+                     , bytestring-encodings
                      , cmark
                      , colonnade
                      , containers

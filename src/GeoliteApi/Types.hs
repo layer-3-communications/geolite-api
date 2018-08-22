@@ -21,6 +21,7 @@ module GeoliteApi.Types
   , MaybeInt(..), boxMaybeInt, unboxMaybeInt
   , MaybeDouble(..), boxMaybeDouble, unboxMaybeDouble 
   , Maps(..)
+  , Total(..)
   ) where
 
 import           Control.DeepSeq                     ( NFData (rnf) )
@@ -32,7 +33,7 @@ import qualified Data.Map.Strict                     as MS
 import qualified Data.Text.Lazy                      as L
 import           Data.Text.Short                     ( ShortText )
 import qualified Data.Text.Short                     as TS
-import           GHC.Exts                            ( Int#, Double#, Double (D#), Int (I#) )
+import           GHC.Exts                            ( Int#, Double#, Double (D#), Int (I#), (==#), (==##) )
 import           GHC.Generics                        ( Generic )
 import           Net.IPv4                            ( IPv4 )
 import qualified Net.IPv4                            as IPv4
@@ -90,17 +91,16 @@ instance Show MaybeInt where
   showsPrec p m = showsPrec p (boxMaybeInt m)
 
 instance Eq MaybeInt where
-  a == b = boxMaybeInt a == boxMaybeInt b 
---  MaybeInt a == MaybeInt b = case a of
---    (# (# #) | #) -> case b of
---      (# (# #) | #) -> True
---      _             -> False
---    (# | a_i# #) -> case b of
---      (# (# #) | #) -> False 
---      (# | b_i# #)  -> case a_i# ==# b_i# of
---        1# -> True
---        _  -> False
---  {-# INLINE (==) #-}
+  MaybeInt a == MaybeInt b = case a of
+    (# (# #) | #) -> case b of
+      (# (# #) | #) -> True
+      _             -> False
+    (# | a_i# #) -> case b of
+      (# (# #) | #) -> False 
+      (# | b_i# #)  -> case a_i# ==# b_i# of
+        1# -> True
+        _  -> False
+  {-# INLINE (==) #-}
 
 -- why does the box the 'MaybeInt' instead of
 -- just returning '()'?
@@ -123,18 +123,16 @@ unboxMaybeInt = \case
 data MaybeDouble = MaybeDouble (# (# #) | Double# #)
 
 instance Eq MaybeDouble where
-  a == b = boxMaybeDouble a == boxMaybeDouble b
-
---  MaybeDouble a == MaybeDouble b = case a of
---    (# (# #) | #) -> case b of
---      (# (# #) | #) -> True
---      _             -> False
---    (# | a_i# #) -> case b of
---      (# (# #) | #) -> False 
---      (# | b_i# #)  -> case a_i# ==## b_i# of
---        1# -> True
---        _  -> False
---  {-# INLINE (==) #-}
+  MaybeDouble a == MaybeDouble b = case a of
+    (# (# #) | #) -> case b of
+      (# (# #) | #) -> True
+      _             -> False
+    (# | a_i# #) -> case b of
+      (# (# #) | #) -> False 
+      (# | b_i# #)  -> case a_i# ==## b_i# of
+        1# -> True
+        _  -> False
+  {-# INLINE (==) #-}
 
 instance Show MaybeDouble where
   showsPrec p m = showsPrec p (boxMaybeDouble m)
@@ -179,9 +177,25 @@ data Maps = Maps
   , countryipv6diet    :: D.Map IPv6 Country
   , cityBlockipv4diet  :: D.Map IPv4 CityBlock
   , cityBlockipv6diet  :: D.Map IPv6 CityBlock
-  , cityLocationMap    :: MS.Map (Maybe Int) CityLocation
-  , countryLocationMap :: MS.Map (Maybe Int) CountryLocation
+  , cityLocationMap    :: MS.Map Int CityLocation
+  , countryLocationMap :: MS.Map Int CountryLocation
   }
+
+-- | Type representing the lookup on an IPv4 or IPv6 address
+data Total = Total
+  (Maybe ASN)
+  (Maybe Country)
+  (Maybe CityBlock)
+  (Maybe CityLocation)
+  (Maybe CountryLocation)
+--  Int
+--  Int
+--  Bool
+--  Bool
+--  Int
+--  Int
+  deriving (Show, Eq, Generic, ToJSON)
+
 
 -- | Similar to 'Bool', but fuzzy - things can be
 --   True, False, or neither True nor False.
@@ -237,7 +251,7 @@ instance ToJSON CountryLocation where
 
 instance ToJSON CityBlock where
   toJSON (CityBlock a b c d e f g h i) = object
-    [ "cityBlockGeonameId"             .= fmap intNull (boxMaybeInt a)
+    [ "city_block_geoname_id"          .= fmap intNull (boxMaybeInt a)
     , "registered_country_geoname_id"  .= fmap intNull (boxMaybeInt b)
     , "represented_country_geoname_id" .= fmap intNull (boxMaybeInt c)
     , "is_anonymous_proxy"             .= d
