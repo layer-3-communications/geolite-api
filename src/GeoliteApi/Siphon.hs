@@ -49,6 +49,9 @@ import           System.Mem                           ( performMajorGC )
 import qualified Data.ByteString                      as B
 import           Text.Read                            ( readMaybe )
 
+import           Debug.Trace
+import           Control.Concurrent
+
 --------------------------------------------------------------------------------
 
 -- Below are functions used to decode CSVs representing
@@ -215,7 +218,24 @@ mkBlock :: (NFData a, Show a)
   -> SI.Siphon Headed B.ByteString a
   -> IO (SR.Of [a] (Maybe SI.SiphonError))
 mkBlock path s = IO.withFile path IO.ReadMode
-  (\handle -> SR.toList $ SR.mapM (\ a -> evaluate (rnf a) >> pure a) $ SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle))
+  (\handle -> do
+      xs <- SR.toList $ SR.mapM (\ a -> evaluate (rnf a) >> pure a) $ SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle)
+      traceShowM (lengthOf xs)
+      pure xs 
+  )
+
+mkBlockDeleteMe :: (NFData a, Show a) 
+  => FilePath 
+  -> SI.Siphon Headed B.ByteString a
+  -> IO (SR.Of [a] (Maybe SI.SiphonError))
+mkBlockDeleteMe path s = IO.withFile path IO.ReadMode
+  (\handle -> do
+      xs <- SR.toList $ SR.mapM (\ a -> evaluate (rnf a) >> traceShowM a >> pure a) $ SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle)
+      traceShowM (lengthOf xs)
+      pure xs 
+  )
+lengthOf :: Foldable t => SR.Of (t a) r -> Int
+lengthOf (xs SR.:> _) = length xs
 
 --------------------------------------------------------------------------------
 
@@ -240,22 +260,35 @@ countryLocationpath = "./geolite2/country/GeoLite2-Country-Locations-en.csv"
 mkMaps :: IO Maps
 mkMaps = do
   -- Perform CSV decoding 
+  traceM "Making ASN Map"
   ( asnls SR.:> _ )
     <- mkBlock asnipv4path siphonAsn
+  traceM "Making ASN_V6 Map"
   ( asnv6ls SR.:> _ )
     <- mkBlock asnipv6path siphonAsnv6
+  traceM "Making Country Map"
   ( countryls SR.:> _ )
     <- mkBlock countryipv4path siphonCountry
+  traceM "Making Country_V6 Map"
   ( countryv6ls SR.:> _ )
     <- mkBlock countryipv6path siphonCountryV6
+  traceM "Making City Block Map"
   ( cityBlockls SR.:> _ )
     <- mkBlock cityBlockipv4path siphonCityBlock
+  traceM "Making City Block_V6 Map"
   ( cityBlockv6ls SR.:> _ )
     <- mkBlock cityBlockipv6path siphonCityBlockV6
+
+  performMajorGC
+
+  threadDelay 30
+
+  traceM "Making City Locations Map"
   ( cityLocations SR.:> _ )
-    <- mkBlock cityLocationpath siphonCityLocations
+    <- mkBlockDeleteMe cityLocationpath siphonCityLocations
+  traceM "Making Country Locations Map"
   ( countryLocations SR.:> _ )
-    <- mkBlock countryLocationpath siphonCountryLocations
+    <- mkBlockDeleteMe countryLocationpath siphonCountryLocations
 
   -- | Create our various maps.
   let asnipv4diet        :: D.Map IPv4 ASN                     = D.fromList  asnls
