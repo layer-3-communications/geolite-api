@@ -51,8 +51,6 @@ import qualified Data.ByteString                      as B
 import           Text.Read                            ( readMaybe )
 import qualified GHC.Exts                             as E
 
-import           Debug.Trace
-
 --------------------------------------------------------------------------------
 
 -- Below are functions used to decode CSVs representing
@@ -233,22 +231,11 @@ mkBlock :: (NFData a, Show a)
 mkBlock path s = IO.withFile path IO.ReadMode
   (\handle -> do
       xs <- SR.toList $ SR.mapM (\ a -> evaluate (rnf a) >> pure a) $ SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle)
-      traceShowM (lengthOf xs)
       pure xs 
   )
 
-mkBlockDeleteMe :: (NFData a, Show a) 
-  => FilePath 
-  -> SI.Siphon Headed B.ByteString a
-  -> IO (SR.Of [a] (Maybe SI.SiphonError))
-mkBlockDeleteMe path s = IO.withFile path IO.ReadMode
-  (\handle -> do
-      xs <- SR.toList $ SR.mapM (\ a -> evaluate (rnf a) >> traceShowM a >> pure a) $ SI.decodeCsvUtf8 s (BS.toChunks $ BS.fromHandle handle)
-      traceShowM (lengthOf xs)
-      pure xs 
-  )
-lengthOf :: Foldable t => SR.Of (t a) r -> Int
-lengthOf (xs SR.:> _) = length xs
+--lengthOf :: Foldable t => SR.Of (t a) r -> Int
+--lengthOf (xs SR.:> _) = length xs
 
 --------------------------------------------------------------------------------
 
@@ -278,23 +265,14 @@ handleError (a SR.:> m) = case m of
 mkMaps :: IO Maps
 mkMaps = do
   -- Perform CSV decoding 
-  traceM "Making ASN Map"
   asnls <- mkBlock asnipv4path siphonAsn >>= handleError
-  traceM "Making ASN_V6 Map"
   asnv6ls <- mkBlock asnipv6path siphonAsnv6 >>= handleError
-  traceM "Making Country Map"
   countryls <- mkBlock countryipv4path siphonCountry >>= handleError
-  traceM "Making Country_V6 Map"
   countryv6ls <- mkBlock countryipv6path siphonCountryV6 >>= handleError
-  traceM "Making City Block Map"
   cityBlockls <- mkBlock cityBlockipv4path siphonCityBlock >>= handleError
-  traceM "Making City Block_V6 Map"
   cityBlockv6ls <- mkBlock cityBlockipv6path siphonCityBlockV6 >>= handleError
-
-  traceM "Making City Locations Map"
-  cityLocations <- mkBlockDeleteMe cityLocationpath siphonCityLocations >>= handleError
-  traceM "Making Country Locations Map"
-  countryLocations <- mkBlockDeleteMe countryLocationpath siphonCountryLocations >>= handleError
+  cityLocations <- mkBlock cityLocationpath siphonCityLocations >>= handleError
+  countryLocations <- mkBlock countryLocationpath siphonCountryLocations >>= handleError
 
   -- | Create our various maps.
   let asnipv4diet        :: D.Map IPv4 ASN                     = D.fromList  asnls
