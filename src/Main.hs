@@ -52,7 +52,7 @@ server imaps = do
     ----- logger
     middleware logStdoutDev
     ----- help page
-    get (regex "/help|readme|") $ do
+    get (regex "/help|readme") $ do
       readMe <- liftIO $ TIO.readFile "./README.md"
       html $ sakura <> (TL.fromStrict $ commonmarkToHtml [] readMe)
 --    get "" $ do

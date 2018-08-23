@@ -183,18 +183,12 @@ data Maps = Maps
 
 -- | Type representing the lookup on an IPv4 or IPv6 address
 data Total = Total
-  (Maybe ASN)
-  (Maybe Country)
-  (Maybe CityBlock)
-  (Maybe CityLocation)
-  (Maybe CountryLocation)
---  Int
---  Int
---  Bool
---  Bool
---  Int
---  Int
-  deriving (Show, Eq, Generic, ToJSON)
+  { asn :: Maybe ASN
+  , country :: Maybe Country
+  , city_block :: Maybe CityBlock
+  , city_location :: Maybe CityLocation
+  , country_location :: Maybe CountryLocation
+  } deriving (Show, Eq, Generic, ToJSON)
 
 
 -- | Similar to 'Bool', but fuzzy - things can be
