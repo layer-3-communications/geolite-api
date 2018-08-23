@@ -5,6 +5,4 @@ I recommend having ~4GB of free ram to use this.
 
 **Usage:**
 
-/ip{v4|v6}/{asn|city|country}/{ip}
-
-/gid/{city|country}/{geoname\_id}
+/ip{v4|v6}/{ip}
