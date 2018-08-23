@@ -19,6 +19,7 @@ import           Control.DeepSeq                      ( NFData (rnf) )
 import           Control.Exception                    ( evaluate )
 import           Control.Monad                        ( guard, (<=<) )
 import qualified Country                              as C
+import qualified Country.Identifier                   as CI
 import qualified Data.ByteString.Char8                as BC8
 import           Data.ByteString.Lazy                 ( fromStrict )
 import qualified Data.ByteString.Streaming            as BS
@@ -51,7 +52,6 @@ import           Text.Read                            ( readMaybe )
 import qualified GHC.Exts                             as E
 
 import           Debug.Trace
-import           Control.Concurrent
 
 --------------------------------------------------------------------------------
 
@@ -102,8 +102,8 @@ siphonCountryLocations = (\g cl -> (g,cl))
         <$> SI.headed "locale_code" shortTextDecode
         <*> SI.headed "continent_code" shortTextDecode
         <*> SI.headed "continent_name" shortTextDecode
-        <*> SI.headed "country_iso_code" C.decodeUtf8
-        <*> SI.headed "country_name" C.decodeUtf8
+        <*> SI.headed "country_iso_code" countryDecode
+        <*> SI.headed "country_name" countryDecode
         <*> SI.headed "is_in_european_union" boolDecode
       )
 
@@ -118,7 +118,7 @@ siphonCityBlock = (\r cb -> (IPv4.lowerInclusive r,IPv4.upperInclusive r,cb))
         <*> SI.headed "is_satellite_provider" boolDecode
         <*> SI.headed "postal_code" shortTextDecode
         <*> SI.headed "latitude" doubleDecode
-        <*> SI.headed "longitude" doubleDecode --shortTextDecode --maybeNumDecode
+        <*> SI.headed "longitude" doubleDecode
         <*> SI.headed "accuracy_radius" maybeNumDecode
       )
 
@@ -144,8 +144,8 @@ siphonCityLocations = (\g cl -> (g,cl))
         <$> SI.headed "locale_code" shortTextDecode
         <*> SI.headed "continent_code" shortTextDecode
         <*> SI.headed "continent_name" shortTextDecode
-        <*> SI.headed "country_iso_code" C.decodeUtf8
-        <*> SI.headed "country_name" C.decodeUtf8
+        <*  SI.headed "country_iso_code" countryDecode
+        <*> SI.headed "country_name" countryDecode
         <*> SI.headed "subdivision_1_iso_code" shortTextDecode
         <*> SI.headed "subdivision_1_name" shortTextDecode
         <*> SI.headed "subdivision_2_iso_code" shortTextDecode
@@ -160,16 +160,28 @@ siphonCityLocations = (\g cl -> (g,cl))
 
 -- Some helper functions for decoding CSVs
 
+-- TODO: add functionality to siphon that lets you discard
+-- things that failed.
+-- This is garbage
+countryDecode :: B.ByteString -> Maybe C.Country
+countryDecode b
+  | B.null b = Just CI.kiribati
+  | otherwise = C.decodeUtf8 b
+
 intToBool :: Int -> FatBool
 intToBool 0 = FatFalse
 intToBool 1 = FatTrue
 intToBool _ = NotTrueOrFalse
 
 readIntExactly :: B.ByteString -> Maybe Int
-readIntExactly bs = do
-  (ident,remaining) <- BC8.readInt bs
-  guard (B.null remaining)
-  return ident
+readIntExactly bs
+  | B.null bs = Nothing
+  | otherwise = case BC8.readInt bs of
+      Nothing -> Nothing
+      Just (ident, remaining) ->
+        if B.null remaining
+          then Just ident
+          else Nothing
 
 helpMe :: String -> String
 helpMe [] = []
@@ -278,10 +290,6 @@ mkMaps = do
   cityBlockls <- mkBlock cityBlockipv4path siphonCityBlock >>= handleError
   traceM "Making City Block_V6 Map"
   cityBlockv6ls <- mkBlock cityBlockipv6path siphonCityBlockV6 >>= handleError
-
-  performMajorGC
-
-  threadDelay 30
 
   traceM "Making City Locations Map"
   cityLocations <- mkBlockDeleteMe cityLocationpath siphonCityLocations >>= handleError

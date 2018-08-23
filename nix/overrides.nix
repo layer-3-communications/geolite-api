@@ -11,6 +11,9 @@ with pkgs.haskell.lib;
    
   siphon = dontCheck super.siphon;
 
+  country = dontHaddock (disableLibraryProfiling (dontCheck (self.callPackage ./deps/country.nix {})));
+  country-code-generation = dontCheck (self.callPackage ./deps/country-code-generation.nix {});
+
   contiguous = ( self.callPackage ./deps/contiguous.nix {} );
 
   primitive = super.primitive_0_6_4_0;

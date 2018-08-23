@@ -156,7 +156,7 @@ data CityLocation = CityLocation
   { locale_code            :: ShortText
   , continent_code         :: ShortText
   , continent_name         :: ShortText
-  , country_iso_code       :: Country.Country
+--  , country_iso_code       :: Country.Country
   , country_name           :: Country.Country
   , subdivision_1_iso_code :: ShortText
   , subdivision_1_name     :: ShortText
@@ -263,11 +263,11 @@ instance ToJSON CityBlock where
     ]
 
 instance ToJSON CityLocation where
-  toJSON (CityLocation a b c d e f g h i j k l m) = object
+  toJSON (CityLocation a b c e f g h i j k l m) = object
     [ "locale_code"            .= textNull a
     , "continent_code"         .= textNull b
     , "continent_name"         .= textNull c
-    , "country_iso_code"       .= Country.alphaTwoUpper d
+--    , "country_iso_code"       .= Country.alphaTwoUpper d
     , "country_name"           .= e
     , "subdivision_1_iso_code" .= textNull f
     , "subdivision_1_name"     .= textNull g

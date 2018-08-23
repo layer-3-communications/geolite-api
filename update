@@ -1,0 +1,1 @@
+cabal2nix https://github.com/andrewthad/country --subpath country > nix/deps/country.nix
