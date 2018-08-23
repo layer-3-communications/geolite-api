@@ -17,7 +17,7 @@ import           Codec.Archive.Zip
 import           Colonnade                            ( Headed )
 import           Control.DeepSeq                      ( NFData (rnf) )
 import           Control.Exception                    ( evaluate )
-import           Control.Monad                        ( guard, (<=<) )
+import           Control.Monad                        ( (<=<) )
 import qualified Country                              as C
 import qualified Country.Identifier                   as CI
 import qualified Data.ByteString.Char8                as BC8
@@ -30,7 +30,6 @@ import           Data.Foldable                        as F
 import           Data.IORef
 import qualified Data.List                            as L
 import qualified Data.Map.Strict                      as MS
-import           Data.Maybe                           ( fromJust )
 import qualified Data.Text.Encoding                   as TE
 import qualified Data.Text.IO                         as T
 import           Data.Text.Short                      ( ShortText )
@@ -49,7 +48,6 @@ import qualified System.IO                            as IO
 import           System.Mem                           ( performMajorGC )
 import qualified Data.ByteString                      as B
 import           Text.Read                            ( readMaybe )
-import qualified GHC.Exts                             as E
 
 --------------------------------------------------------------------------------
 
@@ -183,18 +181,14 @@ readIntExactly bs
 
 helpMe :: String -> String
 helpMe [] = []
-helpMe (x:xs) = case x of
+helpMe str@(x:xs) = case x of
   '-' -> ( x  : '0' : xs)
   '+' -> ( x  : '0' : xs)
   '.' -> ('0' :  x  : xs)
-  _   -> (x : xs)
+  _   -> str
 
 readDouble :: B.ByteString -> Maybe Double
-readDouble b =
-  let helped = readMaybe $ helpMe $ BC8.unpack b :: Maybe Double
-  in case helped of
-    Nothing -> Nothing
-    Just d  -> Just d
+readDouble = readMaybe . helpMe . BC8.unpack
 
 doubleDecode :: B.ByteString -> Maybe MaybeDouble
 doubleDecode = Just . unboxMaybeDouble . readDouble
@@ -206,8 +200,7 @@ numDecode :: B.ByteString -> Maybe (Maybe Int)
 numDecode  = Just . readIntExactly
 
 unwrap :: Maybe (Maybe a) -> Maybe a
-unwrap (Just x) = x
-unwrap Nothing = Nothing
+unwrap = maybe Nothing id
 
 maybeNumDecode :: B.ByteString -> Maybe MaybeInt
 maybeNumDecode  = Just . unboxMaybeInt . readIntExactly
@@ -255,9 +248,10 @@ countryLocationpath = "./geolite2/country/GeoLite2-Country-Locations-en.csv"
 --------------------------------------------------------------------------------
 
 handleError :: SR.Of a (Maybe SI.SiphonError) -> IO a
-handleError (a SR.:> m) = case m of
-  Nothing -> pure a
-  Just e -> fail (SI.humanizeSiphonError e)
+handleError (a SR.:> m) = maybe (pure a) (fail . SI.humanizeSiphonError) m
+--case m of
+--  Nothing -> pure a
+--  Just e -> fail (SI.humanizeSiphonError e)
 
 -- | Calls 'mkBlock' on each CSV path, with the 'Siphon'
 --   needed to decode it, then returns a value of type
@@ -284,15 +278,6 @@ mkMaps = do
       cityLocationMap    :: MS.Map Int CityLocation            = MS.fromList cityLocations
       countryLocationMap :: MS.Map Int CountryLocation         = MS.fromList countryLocations
 
-  putStrLn ("IPv4 Count: " ++ show (length $ E.toList asnipv4diet))
-  putStrLn ("IPv6 Count: " ++ show (length $ E.toList asnipv6diet))
-  putStrLn ("Country Count IPv4: " ++ show (length $ E.toList countryipv4diet))
-  putStrLn ("Country Count IPv6: " ++ show (length $ E.toList countryipv6diet))
-  putStrLn ("City Block Count IPv4: " ++ show (length $ E.toList cityBlockipv4diet))
-  putStrLn ("City Block Count IPv6: " ++ show (length $ E.toList cityBlockipv6diet))
-  putStrLn ("City Location Count: " ++ show (length $ E.toList cityLocationMap))
-  putStrLn ("Country Location Count: " ++ show (length $ E.toList countryLocationMap))
-
   -- | Construct a 'Maps' and store it inside of a compact
   --   region. This is advantageous because our data does
   --   not (and does not need to) take advantage of sharing.
@@ -316,10 +301,14 @@ unzipCsvs asnZip cityZip countryZip = do
 
 -- | Download a single CSV
 download :: FilePath -> IO B.ByteString
-download dlurl = runReq def $ do
-  let (url, _) = fromJust (parseUrlHttps $ BC8.pack dlurl)
-  response <- req GET url NoReqBody bsResponse mempty
-  pure (responseBody response)
+download dlurl = do
+  putStrLn "Gathering resources from across the galaxy..."
+  runReq def $ do
+    let x = (parseUrlHttps $ BC8.pack dlurl :: Maybe (Url 'Https, Option scheme))
+    maybe (fail "URL parse failed") (\(url,_) -> responseBody <$> req GET url NoReqBody bsResponse mempty) x
+    
+--    response <- req GET url NoReqBody bsResponse mempty
+--    pure (responseBody response)
 
 -- | Download all three CSVs. This should probably be
 --   implemented in a way that is more amenable to API
@@ -333,9 +322,7 @@ downloadCsvs = do
 
 -- | Deletes everything in the CSVs folder.
 removeCsvs :: IO ()
-removeCsvs = do
-  dirs <- listDirectory "./geolite2"
-  mapM_ removeDirectoryRecursive ( map ((<>) "./geolite2/") dirs )
+removeCsvs = listDirectory "./geolite2" >>= \dirs -> mapM_ removeDirectoryRecursive ( map ((<>) "./geolite2/") dirs )
 
 -- | Rename everything in
 renameDirs :: [FilePath] -> IO ()
