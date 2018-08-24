@@ -170,14 +170,10 @@ intToBool 1 = FatTrue
 intToBool _ = NotTrueOrFalse
 
 readIntExactly :: B.ByteString -> Maybe Int
-readIntExactly bs
-  | B.null bs = Nothing
-  | otherwise = case BC8.readInt bs of
-      Nothing -> Nothing
-      Just (ident, remaining) ->
-        if B.null remaining
-          then Just ident
-          else Nothing
+readIntExactly bs = do
+  (ident,remaining) <- BC8.readInt bs
+  guard (B.null remaining)
+  pure ident
 
 helpMe :: String -> String
 helpMe [] = []
@@ -249,9 +245,6 @@ countryLocationpath = "./geolite2/country/GeoLite2-Country-Locations-en.csv"
 
 handleError :: SR.Of a (Maybe SI.SiphonError) -> IO a
 handleError (a SR.:> m) = maybe (pure a) (fail . SI.humanizeSiphonError) m
---case m of
---  Nothing -> pure a
---  Just e -> fail (SI.humanizeSiphonError e)
 
 -- | Calls 'mkBlock' on each CSV path, with the 'Siphon'
 --   needed to decode it, then returns a value of type
@@ -305,11 +298,8 @@ download dlurl = do
   putStrLn "Gathering resources from across the galaxy..."
   runReq def $ do
     let x = (parseUrlHttps $ BC8.pack dlurl :: Maybe (Url 'Https, Option scheme))
-    maybe (fail "URL parse failed") (\(url,_) -> responseBody <$> req GET url NoReqBody bsResponse mempty) x
+    maybe (fail $ "URL for download parse failed. Url=" <> dlurl) (\(url,_) -> responseBody <$> req GET url NoReqBody bsResponse mempty) x
     
---    response <- req GET url NoReqBody bsResponse mempty
---    pure (responseBody response)
-
 -- | Download all three CSVs. This should probably be
 --   implemented in a way that is more amenable to API
 --   change.
