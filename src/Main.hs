@@ -14,7 +14,7 @@ import qualified Data.ByteString.Encodings            as BE
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted  as D
 import           Data.IORef
 import qualified Data.Map.Strict                      as MS
-import           Data.Maybe                           ( maybe ) --, fromMaybe ) --, isJust )
+import           Data.Maybe                           ( maybe )
 import qualified Data.Text                            as T
 import qualified Data.Text.Encoding                   as TE
 import qualified Data.Text.IO                         as TIO

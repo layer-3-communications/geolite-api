@@ -201,10 +201,6 @@ instance Parsable IPv4 where
     Nothing -> Left "parseParam IPv4: no parse"
     Just i  -> Right i
 
-deriving instance NFData  IPv4
-deriving instance NFData  IPv6
-deriving instance Generic IPv6
-
 instance Parsable IPv6 where
   parseParam ip = case IPv6.decode $ L.toStrict ip of
     Nothing -> Left "parseParam IPv6: no parse"
