@@ -8,6 +8,7 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE StrictData            #-}
 {-# LANGUAGE UnboxedTuples         #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 
@@ -87,17 +88,30 @@ data CityBlock = CityBlock
 --   but allows the 'Int' inside to unbox.
 data MaybeInt = MaybeInt (# (# #) | Int# #)
 
+{-# COMPLETE JustInt, NothingInt #-}
+pattern JustInt :: Int# -> (# (# #) | Int# #)
+pattern JustInt a = (# | a #) 
+pattern NothingInt ::  (# (# #) | Int# #)
+pattern NothingInt = (# (# #) | #)
+
+
+{-# COMPLETE JustDouble, NothingDouble #-}
+pattern JustDouble :: Double# -> (# (# #) | Double# #)
+pattern JustDouble a = (# | a #) 
+pattern NothingDouble ::  (# (# #) | Double# #)
+pattern NothingDouble = (# (# #) | #)
+
 instance Show MaybeInt where
   showsPrec p m = showsPrec p (boxMaybeInt m)
 
 instance Eq MaybeInt where
   MaybeInt a == MaybeInt b = case a of
-    (# (# #) | #) -> case b of
-      (# (# #) | #) -> True
+    NothingInt -> case b of
+      NothingInt -> True
       _             -> False
-    (# | a_i# #) -> case b of
-      (# (# #) | #) -> False 
-      (# | b_i# #)  -> case a_i# ==# b_i# of
+    JustInt a_i# -> case b of
+      NothingInt -> False 
+      JustInt b_i#  -> case a_i# ==# b_i# of
         1# -> True
         _  -> False
   {-# INLINE (==) #-}
@@ -111,8 +125,8 @@ instance NFData MaybeInt where
 -- | Convert a 'MaybeInt' to a 'Maybe' 'Int'.
 boxMaybeInt :: MaybeInt -> Maybe Int
 boxMaybeInt (MaybeInt x) = case x of
-  (# (# #) | #) -> Nothing
-  (# | i #)     -> Just (I# i)
+  NothingInt -> Nothing
+  JustInt i# -> Just (I# i#)
 
 -- | Convert a 'Maybe' 'Int' to a 'MaybeInt'.
 unboxMaybeInt :: Maybe Int -> MaybeInt
@@ -124,12 +138,12 @@ data MaybeDouble = MaybeDouble (# (# #) | Double# #)
 
 instance Eq MaybeDouble where
   MaybeDouble a == MaybeDouble b = case a of
-    (# (# #) | #) -> case b of
-      (# (# #) | #) -> True
+    NothingDouble -> case b of
+      NothingDouble -> True
       _             -> False
-    (# | a_i# #) -> case b of
-      (# (# #) | #) -> False 
-      (# | b_i# #)  -> case a_i# ==## b_i# of
+    JustDouble a_i# -> case b of
+      NothingDouble -> False 
+      JustDouble b_i#  -> case a_i# ==## b_i# of
         1# -> True
         _  -> False
   {-# INLINE (==) #-}
@@ -143,13 +157,13 @@ instance NFData MaybeDouble where
 
 boxMaybeDouble :: MaybeDouble -> Maybe Double
 boxMaybeDouble (MaybeDouble x) = case x of
-  (# (# #) | #) -> Nothing
-  (# | d #)     -> Just (D# d)
+  NothingDouble -> Nothing
+  JustDouble d# -> Just (D# d#)
 
 unboxMaybeDouble :: Maybe Double -> MaybeDouble
 unboxMaybeDouble = \case
-  Nothing -> MaybeDouble (# (# #) | #)
-  Just (D# d) -> MaybeDouble (# | d #)
+  Nothing -> MaybeDouble NothingDouble
+  Just (D# d) -> MaybeDouble (JustDouble d)
 
 -- | Type of City Location csv
 data CityLocation = CityLocation
