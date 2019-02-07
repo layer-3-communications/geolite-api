@@ -262,14 +262,14 @@ mkMaps = do
   countryLocations <- mkBlock countryLocationpath siphonCountryLocations >>= handleError
 
   -- | Create our various maps.
-  let asnipv4diet        :: D.Map IPv4 ASN                     = D.fromList  asnls
-      asnipv6diet        :: D.Map IPv6 ASN                     = D.fromList  asnv6ls
-      countryipv4diet    :: D.Map IPv4 Country                 = D.fromList  countryls
-      countryipv6diet    :: D.Map IPv6 Country                 = D.fromList  countryv6ls
-      cityBlockipv4diet  :: D.Map IPv4 CityBlock               = D.fromList  cityBlockls
-      cityBlockipv6diet  :: D.Map IPv6 CityBlock               = D.fromList  cityBlockv6ls
-      cityLocationMap    :: MS.Map Int CityLocation            = MS.fromList cityLocations
-      countryLocationMap :: MS.Map Int CountryLocation         = MS.fromList countryLocations
+  let asnipv4diet        :: D.Map IPv4 ASN             = D.fromList  asnls
+      asnipv6diet        :: D.Map IPv6 ASN             = D.fromList  asnv6ls
+      countryipv4diet    :: D.Map IPv4 Country         = D.fromList  countryls
+      countryipv6diet    :: D.Map IPv6 Country         = D.fromList  countryv6ls
+      cityBlockipv4diet  :: D.Map IPv4 CityBlock       = D.fromList  cityBlockls
+      cityBlockipv6diet  :: D.Map IPv6 CityBlock       = D.fromList  cityBlockv6ls
+      cityLocationMap    :: MS.Map Int CityLocation    = MS.fromList cityLocations
+      countryLocationMap :: MS.Map Int CountryLocation = MS.fromList countryLocations
 
   -- | Construct a 'Maps' and store it inside of a compact
   --   region. This is advantageous because our data does
