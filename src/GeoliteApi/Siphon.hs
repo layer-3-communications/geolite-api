@@ -13,41 +13,43 @@ module GeoliteApi.Siphon
   , replaceCsvs
   ) where
 
-import           Codec.Archive.Zip
-import           Colonnade                            ( Headed )
-import           Control.DeepSeq                      ( NFData (rnf) )
-import           Control.Exception                    ( evaluate )
-import           Control.Monad                        ( (<=<), guard )
-import qualified Country                              as C
-import qualified Country.Identifier                   as CI
-import qualified Data.ByteString.Char8                as BC8
-import           Data.ByteString.Lazy                 ( fromStrict )
-import qualified Data.ByteString.Streaming            as BS
-import           Data.Compact                         ( compact, getCompact )
-import           Data.Default
-import qualified Data.Diet.Map.Strict.Unboxed.Lifted  as D
-import           Data.Foldable                        as F
-import           Data.IORef
-import qualified Data.List                            as L
-import qualified Data.Map.Strict                      as MS
-import qualified Data.Text.Encoding                   as TE
-import qualified Data.Text.IO                         as T
-import           Data.Text.Short                      ( ShortText )
-import qualified Data.Text.Short                      as TS
-import           GeoliteApi.Types
-import           Net.IPv4                             ( IPv4 )
-import qualified Net.IPv4                             as IPv4
-import           Net.IPv6                             ( IPv6 )
-import qualified Net.IPv6                             as IPv6
-import           Network.HTTP.Req
-import qualified Siphon                               as SI
-import qualified Streaming                            as SR
-import qualified Streaming.Prelude                    as SR
-import           System.Directory
-import qualified System.IO                            as IO
-import           System.Mem                           ( performMajorGC )
-import qualified Data.ByteString                      as B
-import           Text.Read                            ( readMaybe )
+import Codec.Archive.Zip
+import Colonnade ( Headed )
+import Control.DeepSeq ( NFData (rnf) )
+import Control.Exception ( evaluate )
+import Control.Monad ( (<=<), guard )
+import Data.ByteString.Lazy ( fromStrict )
+import Data.Compact ( compact, getCompact )
+import Data.Default
+import Data.Foldable as F
+import Data.IORef
+import Data.Text (Text)
+import Data.Text.Short ( ShortText )
+import GeoliteApi.Types
+import Net.IPv4 ( IPv4 )
+import Net.IPv6 ( IPv6 )
+import Network.HTTP.Req
+import System.Directory
+import System.Mem ( performMajorGC )
+import Text.Read ( readMaybe )
+
+import qualified Country as C
+import qualified Country.Identifier as CI
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC8
+import qualified Data.ByteString.Streaming as BS
+import qualified Data.Diet.Map.Strict.Unboxed.Lifted as D
+import qualified Data.List as L
+import qualified Data.Map.Strict as MS
+import qualified Data.Text.Encoding as TE
+import qualified Data.Text.IO as T
+import qualified Data.Text.Short as TS
+import qualified Net.IPv4 as IPv4
+import qualified Net.IPv6 as IPv6
+import qualified Siphon as SI
+import qualified Streaming as SR
+import qualified Streaming.Prelude as SR
+import qualified System.IO as IO
 
 --------------------------------------------------------------------------------
 
@@ -162,6 +164,11 @@ siphonCityLocations = (\g cl -> (g,cl))
 countryDecode :: B.ByteString -> Maybe C.Country
 countryDecode b
   | B.null b = Just CI.kiribati
+  | b == "DR Congo" = Just CI.congo
+  | b == "Congo Republic" = Just CI.congo
+  | b == "North Macedonia" = Just CI.macedoniaTheFormerYugoslavRepublicOf
+  | b == "Eswatini" = Just CI.swaziland
+  | b == "East Timor" = Just CI.timorleste
   | otherwise = C.decodeUtf8 b
 
 intToBool :: Int -> FatBool
@@ -293,21 +300,24 @@ unzipCsvs asnZip cityZip countryZip = do
   extractFilesFromArchive [ OptRecursive, OptDestination $ zipPath ] countryZip
 
 -- | Download a single CSV
-download :: FilePath -> IO B.ByteString
-download dlurl = do
+download :: FilePath -> Option Https -> IO B.ByteString
+download dlurl opts = do
   putStrLn "Gathering resources from across the galaxy..."
   runReq def $ do
     let x = (parseUrlHttps $ BC8.pack dlurl :: Maybe (Url 'Https, Option scheme))
-    maybe (fail $ "URL for download parse failed. Url=" <> dlurl) (\(url,_) -> responseBody <$> req GET url NoReqBody bsResponse mempty) x
+    maybe (fail $ "URL for download parse failed. Url=" <> dlurl) (\(url,_) -> responseBody <$> req GET url NoReqBody bsResponse opts) x
     
 -- | Download all three CSVs. This should probably be
 --   implemented in a way that is more amenable to API
 --   change.
 downloadCsvs :: IO (B.ByteString, B.ByteString, B.ByteString)
 downloadCsvs = do
-  cityZip    <- download "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip"
-  countryZip <- download "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip"
-  asnZip     <- download "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip"
+  cityZip <- download "https://download.maxmind.com/app/geoip_download"
+    ("edition_id" =: ("GeoLite2-City-CSV" :: Text) <> "license_key" =: ("VCNlMNoHJ8Lf" :: Text) <> "suffix" =: ("zip" :: Text))
+  countryZip <- download "https://download.maxmind.com/app/geoip_download"
+    ("edition_id" =: ("GeoLite2-Country-CSV" :: Text) <> "license_key" =: ("VCNlMNoHJ8Lf" :: Text) <> "suffix" =: ("zip" :: Text))
+  asnZip <- download "https://download.maxmind.com/app/geoip_download"
+    ("edition_id" =: ("GeoLite2-ASN-CSV" :: Text) <> "license_key" =: ("VCNlMNoHJ8Lf" :: Text) <> "suffix" =: ("zip" :: Text))
   pure (cityZip, countryZip, asnZip)
 
 -- | Deletes everything in the CSVs folder.
