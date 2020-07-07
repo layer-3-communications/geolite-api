@@ -17,7 +17,7 @@ import           Codec.Archive.Zip
 import           Colonnade                            ( Headed )
 import           Control.DeepSeq                      ( NFData (rnf) )
 import           Control.Exception                    ( evaluate )
-import           Control.Monad                        ( (<=<) )
+import           Control.Monad                        ( (<=<), guard )
 import qualified Country                              as C
 import qualified Country.Identifier                   as CI
 import qualified Data.ByteString.Char8                as BC8
@@ -305,9 +305,9 @@ download dlurl = do
 --   change.
 downloadCsvs :: IO (B.ByteString, B.ByteString, B.ByteString)
 downloadCsvs = do
-  cityZip    <- download "https://geolite.maxmind.com/download/geoip/database/GeoLite2-City-CSV.zip"
-  countryZip <- download "https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip"
-  asnZip     <- download "https://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN-CSV.zip"
+  cityZip    <- download "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip"
+  countryZip <- download "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip"
+  asnZip     <- download "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip"
   pure (cityZip, countryZip, asnZip)
 
 -- | Deletes everything in the CSVs folder.

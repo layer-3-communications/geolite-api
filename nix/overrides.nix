@@ -16,6 +16,12 @@ with pkgs.haskell.lib;
 
   contiguous = ( self.callPackage ./deps/contiguous.nix {} );
 
+  wide-word = ( self.callPackage ./deps/wide-word.nix {} );
+
+  quickcheck-classes = ( self.callPackage ./deps/quickcheck-classes.nix {} );
+
+  hedgehog = ( self.callPackage ./deps/hedgehog.nix {} );
+
   primitive = super.primitive_0_6_4_0;
   
   quantification = self.callPackage ./deps/quantification.nix {};

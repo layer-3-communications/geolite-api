@@ -69,7 +69,7 @@ executable geolite-api
                      , containers
                      , country
                      , cron
-                     , ip >= 1.4.0
+                     , ip >= 1.5.0
                      , primitive >= 0.6.4.0
                      , primitive-containers
                      , scientific
