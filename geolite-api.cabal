@@ -1,98 +1,54 @@
--- The name of the package.
-name:                geolite-api
-
--- The package version.  See the Haskell package versioning policy (PVP)
--- for standards guiding when and how versions should be incremented.
--- https://wiki.haskell.org/Package_versioning_policy
--- PVP summary:      +-+------- breaking API changes
---                   | | +----- non-breaking API additions
---                   | | | +--- code changes with no API change
-version:             0.1.0.0
-
--- A short (one-line) description of the package.
--- synopsis:
-
--- A longer description of the package.
--- description:
-
--- The license under which the package is released.
-license:             BSD3
-
--- The file containing the license text.
-license-file:        LICENSE
-
--- The package author(s).
-author:              Zachary Churchill
-
--- An email address to which users can send suggestions, bug reports, and
--- patches.
-maintainer:          zacharyachurchill@gmail.com
-
--- A copyright notice.
--- copyright:
-
--- category:
-
-build-type:          Simple
-
--- Extra files to be distributed with the package, such as examples or a
--- README.
-extra-source-files:  ChangeLog.md
-
--- Constraint on the version of Cabal needed to build this package.
-cabal-version:       >=1.10
+cabal-version: 3.0
+name: geolite-api
+version: 0.1.0.0
+license: BSD-3-Clause
+license-file: LICENSE
+author: Zachary Churchill
+maintainer: amartin@layer3com.com
+build-type: Simple
+extra-source-files: ChangeLog.md
 
 executable geolite-api
-  -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
-
   ghc-options: 
     -Wall 
     -Wwarn
     -O2
-
-  -- Modules included in this executable, other than Main.
-  other-modules:       GeoliteApi.Types
-                       GeoliteApi.Siphon
-
-  -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions:
-
-  -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11 && <4.12
-                     , aeson
-                     , aeson-pretty
-                     , bytestring
-                     , bytestring-encodings
-                     , cmark
-                     , colonnade
-                     , containers
-                     , country
-                     , cron
-                     , ip >= 1.5.0
-                     , primitive >= 0.6.4.0
-                     , primitive-containers
-                     , scientific
-                     , scotty
-                     , siphon >= 0.8.1
-                     , streaming
-                     , streaming-bytestring
-                     , text
-                     , transformers
-                     , vector
-                     , wai-extra
-                     , compact
-                     , text-short
-                     , deepseq
-                     , unix
-                     , zip-archive
-                     , req
-                     , data-default
-                     , directory
-
-  -- Directories containing source files.
+  other-modules:
+    GeoliteApi.Types
+    GeoliteApi.Siphon
+  build-depends:
+    , aeson >=1.5
+    , aeson-pretty
+    , base >=4.13 && <4.15
+    , bytestring
+    , bytestring-encodings
+    , cmark
+    , colonnade >=1.2.0.2
+    , compact
+    , containers
+    , country
+    , cron
+    , data-default
+    , deepseq
+    , directory
+    , ip >=1.7.0
+    , modern-uri >=0.3.4.1
+    , primitive >= 0.6.4.0
+    , primitive-containers
+    , req >=0.3.9.1
+    , scientific
+    , scotty
+    , siphon >=0.8.1
+    , streaming
+    , streaming-bytestring
+    , text
+    , text-short
+    , transformers
+    , unix
+    , vector >=0.12
+    , wai-extra
+    , zip-archive
   hs-source-dirs:      src
-
-  -- Base language which the package is written in.
-  default-language:    Haskell2010
+  default-language: Haskell2010
 

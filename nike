@@ -1,2 +1,0 @@
-./update
-nix-shell --run ./run

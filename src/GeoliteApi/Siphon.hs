@@ -1,12 +1,14 @@
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE MagicHash           #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE UnboxedSums         #-}
-{-# LANGUAGE UnboxedTuples       #-}
+{-# LANGUAGE UnboxedSums #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module GeoliteApi.Siphon
   ( getCsvs
@@ -20,10 +22,8 @@ import Control.Exception ( evaluate )
 import Control.Monad ( (<=<), guard )
 import Data.ByteString.Lazy ( fromStrict )
 import Data.Compact ( compact, getCompact )
-import Data.Default
 import Data.Foldable as F
 import Data.IORef
-import Data.Text (Text)
 import Data.Text.Short ( ShortText )
 import GeoliteApi.Types
 import Net.IPv4 ( IPv4 )
@@ -32,12 +32,14 @@ import Network.HTTP.Req
 import System.Directory
 import System.Mem ( performMajorGC )
 import Text.Read ( readMaybe )
+import Text.URI ( URI )
+import Text.URI.QQ ( uri )
 
+import qualified Streaming.ByteString as BS
 import qualified Country as C
 import qualified Country.Identifier as CI
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC8
-import qualified Data.ByteString.Streaming as BS
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted as D
 import qualified Data.List as L
 import qualified Data.Map.Strict as MS
@@ -300,24 +302,21 @@ unzipCsvs asnZip cityZip countryZip = do
   extractFilesFromArchive [ OptRecursive, OptDestination $ zipPath ] countryZip
 
 -- | Download a single CSV
-download :: FilePath -> Option Https -> IO B.ByteString
-download dlurl opts = do
+download :: URI -> IO B.ByteString
+download dlurl = do
   putStrLn "Gathering resources from across the galaxy..."
-  runReq def $ do
-    let x = (parseUrlHttps $ BC8.pack dlurl :: Maybe (Url 'Https, Option scheme))
-    maybe (fail $ "URL for download parse failed. Url=" <> dlurl) (\(url,_) -> responseBody <$> req GET url NoReqBody bsResponse opts) x
+  case useHttpsURI dlurl of
+    Just (url,opts) -> runReq defaultHttpConfig (responseBody <$> req GET url NoReqBody bsResponse opts)
+    Nothing -> fail "Could not parse hardcoded URL"
     
 -- | Download all three CSVs. This should probably be
 --   implemented in a way that is more amenable to API
 --   change.
 downloadCsvs :: IO (B.ByteString, B.ByteString, B.ByteString)
 downloadCsvs = do
-  cityZip <- download "https://download.maxmind.com/app/geoip_download"
-    ("edition_id" =: ("GeoLite2-City-CSV" :: Text) <> "license_key" =: ("VCNlMNoHJ8Lf" :: Text) <> "suffix" =: ("zip" :: Text))
-  countryZip <- download "https://download.maxmind.com/app/geoip_download"
-    ("edition_id" =: ("GeoLite2-Country-CSV" :: Text) <> "license_key" =: ("VCNlMNoHJ8Lf" :: Text) <> "suffix" =: ("zip" :: Text))
-  asnZip <- download "https://download.maxmind.com/app/geoip_download"
-    ("edition_id" =: ("GeoLite2-ASN-CSV" :: Text) <> "license_key" =: ("VCNlMNoHJ8Lf" :: Text) <> "suffix" =: ("zip" :: Text))
+  cityZip <- download [uri|https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip|]
+  countryZip <- download [uri|https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip|]
+  asnZip <- download [uri|https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN-CSV&license_key=VCNlMNoHJ8Lf&suffix=zip|]
   pure (cityZip, countryZip, asnZip)
 
 -- | Deletes everything in the CSVs folder.
