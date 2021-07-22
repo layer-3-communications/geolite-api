@@ -3,6 +3,7 @@ FROM ubuntu:20.04
 #Install packages
 RUN apt update && \
     apt upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install build-essential -y --fix-missing && \
     apt autoremove && \
     apt-get clean
 
