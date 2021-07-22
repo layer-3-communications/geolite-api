@@ -11,6 +11,8 @@ COPY ./geolite-api /root/geolite-api
 
 RUN chmod a+x /root/geolite-api
 
+RUN echo 'hosts: files dns' > /etc/nsswitch.conf
+
 WORKDIR /root
 
 EXPOSE 3000
