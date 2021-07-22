@@ -8,6 +8,8 @@ RUN apt update && \
 
 COPY ./geolite-api /root/geolite-api
 
+RUN chmod a+x /root/geolite-api
+
 WORKDIR /root
 
 EXPOSE 3000
