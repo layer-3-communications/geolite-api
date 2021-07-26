@@ -10,7 +10,7 @@ RUN apt update && \
 COPY ./geolite-api /root/geolite-api
 
 RUN chmod a+x /root/geolite-api && \
-    update ca-certificates && \
+    update-ca-certificates && \
     echo 'hosts: files dns' > /etc/nsswitch.conf
 
 WORKDIR /root
