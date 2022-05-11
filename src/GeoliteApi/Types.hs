@@ -211,9 +211,6 @@ instance ToJSON FatBool where
   toJSON FatFalse       = AE.Bool False
   toJSON NotTrueOrFalse = AE.Null
 
-instance ToJSON ShortText where
-  toJSON t = AE.String $ TS.toText t
-
 instance ToJSON ASN where
   toJSON (ASN a b) = object
     [ "autonomous_system_number"       .= fmap intNull a

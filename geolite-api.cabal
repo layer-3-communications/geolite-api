@@ -35,7 +35,7 @@ executable geolite-api
     , ip >=1.7.0
     , modern-uri >=0.3.4.1
     , primitive >= 0.6.4.0
-    , primitive-containers
+    , primitive-containers >=0.5
     , req >=0.3.9.1
     , scientific
     , scotty

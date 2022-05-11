@@ -1,0 +1,12 @@
+packages: .
+
+source-repository-package
+    type: git
+    location: https://github.com/andrewthad/country
+    tag: b0f029ffa579ef7e2571ffa862aae5a7f5500206
+    subdir: country
+
+source-repository-package
+    type: git
+    location: https://github.com/andrewthad/primitive-containers
+    tag: 3eb6014e9d9199dff11c60bca1b169f1da851aaf
