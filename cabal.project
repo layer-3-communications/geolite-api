@@ -3,7 +3,7 @@ packages: .
 source-repository-package
     type: git
     location: https://github.com/andrewthad/country
-    tag: 19ae5259d2dde5193e09fa4e0a196931ba37ffdd
+    tag: 03aeee9396350f93a84128c2cbc82270106e2639
     subdir: country
 
 source-repository-package

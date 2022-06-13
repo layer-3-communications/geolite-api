@@ -171,7 +171,9 @@ countryDecode b
   | b == "North Macedonia" = Just CI.macedoniaTheFormerYugoslavRepublicOf
   | b == "Eswatini" = Just CI.swaziland
   | b == "East Timor" = Just CI.timorleste
-  | otherwise = C.decodeUtf8 b
+  | otherwise = case C.decodeUtf8 b of
+      Nothing -> Just CI.kiribati
+      Just c -> Just c
 
 intToBool :: Int -> FatBool
 intToBool 0 = FatFalse
