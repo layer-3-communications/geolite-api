@@ -54,9 +54,6 @@ server imaps = do
     get (regex "/help|readme") $ do
       readMe <- liftIO $ TIO.readFile "./README.md"
       html $ sakura <> (TL.fromStrict $ commonmarkToHtml [] readMe)
---    get "" $ do
---      readMe <- liftIO $ TIO.readFile "./README.md"
---      html $ sakura <> (TL.fromStrict $ commonmarkToHtml [] readMe)
     ----- IPv4 queries
     get "/ipv4/:ip" $ do
       query <- param "ip"
